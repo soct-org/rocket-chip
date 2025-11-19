@@ -1,18 +1,17 @@
-/* verilator lint_off UNOPTFLAT */
-
 module EICG_wrapper(
-  output out,
-  input en,
-  input test_en,
-  input in
+  output logic out,
+  input  logic en,
+  input  logic test_en,
+  input  logic in
 );
 
-  reg en_latched /*verilator clock_enable*/;
+  logic en_latched /*verilator clock_enable*/;
 
-  always @(*) begin
-     if (!in) begin
-        en_latched = en || test_en;
-     end
+  always_latch begin
+    if (!in) begin
+      en_latched = en || test_en;
+    end
+    // implicit retain (latch) when 'in' is high
   end
 
   assign out = en_latched && in;
