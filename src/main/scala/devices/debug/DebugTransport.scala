@@ -4,9 +4,9 @@ package freechips.rocketchip.devices.debug
 
 import chisel3._
 import chisel3.util._
-
 import org.chipsalliance.cde.config._
 import freechips.rocketchip.jtag._
+import freechips.rocketchip.subsystem.DetermineTopLevelResetType
 import freechips.rocketchip.util.property
 
 
@@ -61,9 +61,9 @@ class DTMInfo extends Bundle {
 }
 
 /** A wrapper around JTAG providing a reset signal and manufacturer id. */
-class SystemJTAGIO extends Bundle {
+class SystemJTAGIO (implicit val p: Parameters) extends Bundle {
   val jtag = Flipped(new JTAGIO(hasTRSTn = false))
-  val reset = Input(Reset())
+  val reset = Input(DetermineTopLevelResetType()) // Can be top level reset -> requires reset implementation, not abstract
   val mfr_id = Input(UInt(11.W))
   val part_number = Input(UInt(16.W))
   val version = Input(UInt(4.W))
