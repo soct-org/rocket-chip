@@ -23,10 +23,23 @@ import freechips.rocketchip.util.IntToAugmentedInt
 import freechips.rocketchip.util.SeqToAugmentedSeq
 import freechips.rocketchip.util.SeqBoolBitwiseOps
 
-// TODO: delete this trait once deduplication is smart enough to avoid globally inlining matching circuits
+// The original Rocket Chip has InlineInstance declared here. Its implementation depends on the Chisel version used.
+// Since the API changes, there is no way to have a single implementation that works for all Chisel versions.
+// Therefore, you must provide the implementation of InlineInstance trait in your project or comment it out if not needed:
+// Chisel 3 version:
+/*
+trait InlineInstance { self: chisel3.experimental.BaseModule =>
+  chisel3.experimental.annotate(
+    new chisel3.experimental.ChiselAnnotation {
+      def toFirrtl: firrtl.annotations.Annotation = firrtl.passes.InlineAnnotation(self.toNamed) } )
+}
+ */
+// New Chisel version:
+/*
 trait InlineInstance { self: chisel3.experimental.BaseModule =>
   chisel3.experimental.annotate(self)(Seq(firrtl.passes.InlineAnnotation(self.toNamed)))
 }
+*/
 
 class DCacheErrors(implicit p: Parameters) extends L1HellaCacheBundle()(p)
     with CanHaveErrors {

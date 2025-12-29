@@ -11,3 +11,6 @@
 	path = dependencies/diplomacy
 	url = https://github.com/chipsalliance/diplomacy.git
 	branch = master
+[submodule "dependencies/diplomacy-chisel3"]
+	path = dependencies/diplomacy-chisel3
+	url = https://github.com/chipsalliance/diplomacy.git
