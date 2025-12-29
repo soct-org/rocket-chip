@@ -201,7 +201,6 @@ class SimDTM(implicit p: Parameters) extends BlackBox with HasBlackBoxResource {
   }
 
   addResource("/vsrc/SimDTM.v")
-  addResource("/csrc/SimDTM.cc")
 }
 /** BlackBox to export JTAG interface */
 class SimJTAG(tickDelay: Int = 50) extends BlackBox(Map("TICK_DELAY" -> IntParam(tickDelay)))
@@ -234,9 +233,6 @@ class SimJTAG(tickDelay: Int = 50) extends BlackBox(Map("TICK_DELAY" -> IntParam
   }
 
   addResource("/vsrc/SimJTAG.v")
-  addResource("/csrc/SimJTAG.cc")
-  addResource("/csrc/remote_bitbang.h")
-  addResource("/csrc/remote_bitbang.cc")
 }
 
 object Debug {

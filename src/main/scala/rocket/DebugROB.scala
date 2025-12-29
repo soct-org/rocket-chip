@@ -37,7 +37,6 @@ class DebugROBPushTrace(implicit val p: Parameters) extends BlackBox with HasBla
     val wb_tag = Input(UInt(64.W))
     val trace = Input(new WidenedTracedInstruction)
   })
-  addResource("/csrc/debug_rob.cc")
   addResource("/vsrc/debug_rob.v")
 }
 
@@ -51,7 +50,6 @@ class DebugROBPushWb(implicit val p: Parameters) extends BlackBox
     val wb_tag = Input(UInt(64.W))
     val wb_data = Input(UInt(512.W))
   })
-  addResource("/csrc/debug_rob.cc")
   addResource("/vsrc/debug_rob.v")
 }
 
@@ -62,7 +60,6 @@ class DebugROBPopTrace(implicit val p: Parameters) extends BlackBox with HasBlac
     val hartid = Input(UInt(32.W))
     val trace = Output(new WidenedTracedInstruction)
   })
-  addResource("/csrc/debug_rob.cc")
   addResource("/vsrc/debug_rob.v")
 }
 
