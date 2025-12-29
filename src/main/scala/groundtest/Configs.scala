@@ -15,18 +15,18 @@ import freechips.rocketchip.rocket.{DCacheParams}
 
 class TraceGenConfig extends Config(
   new WithTraceGen(2)() ++
-  new GroundTestBaseConfig
+    new GroundTestBaseConfig
 )
 
 class TraceGenBufferlessConfig extends Config(
   new WithBufferlessBroadcastHub ++
-  new TraceGenConfig
+    new TraceGenConfig
 )
 
 /* Composable Configs to set individual parameters */
 
 class GroundTestBaseConfig extends Config(
-  new BaseConfig().alter((site,here,up) => {
+  new BaseConfig().alter((site, here, up) => {
     case DebugModuleKey => None
     case CLINTKey => None
     case PLICKey => None
@@ -35,12 +35,14 @@ class GroundTestBaseConfig extends Config(
 )
 
 class WithTraceGen(
-  n: Int = 2,
-  overrideMemOffset: Option[BigInt] = None)(
-  params: Seq[DCacheParams] = List.fill(n){ DCacheParams(nSets = 16, nWays = 1) },
-  nReqs: Int = 8192,
-  wordBits: Int = 32
-) extends Config((site, here, up) => {
+                    n: Int = 2,
+                    overrideMemOffset: Option[BigInt] = None)(
+                    params: Seq[DCacheParams] = List.fill(n) {
+                      DCacheParams(nSets = 16, nWays = 1)
+                    },
+                    nReqs: Int = 8192,
+                    wordBits: Int = 32
+                  ) extends Config((site, here, up) => {
   case TilesLocated(InSubsystem) => {
     val prev = up(TilesLocated(InSubsystem))
     val idOffset = up(NumTiles)

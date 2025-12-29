@@ -11,15 +11,16 @@ import org.chipsalliance.cde.config.Parameters
 import org.chipsalliance.diplomacy.lazymodule._
 
 case class TraceEncoderParams(
-  encoderBaseAddr: BigInt,
-  buildEncoder: Parameters => LazyTraceEncoder,
-  useArbiterMonitor: Boolean,
-  // a seq of functions that takes a parameter and returns a lazymodule and a target id
-  buildSinks: Seq[Parameters => (LazyTraceSink, Int)] = Seq.empty[Parameters => (LazyTraceSink, Int)]
-)
+                               encoderBaseAddr: BigInt,
+                               buildEncoder: Parameters => LazyTraceEncoder,
+                               useArbiterMonitor: Boolean,
+                               // a seq of functions that takes a parameter and returns a lazymodule and a target id
+                               buildSinks: Seq[Parameters => (LazyTraceSink, Int)] = Seq.empty[Parameters => (LazyTraceSink, Int)]
+                             )
 
 class LazyTraceEncoder(val coreParams: TraceCoreParams)(implicit p: Parameters) extends LazyModule {
   override lazy val module = new LazyTraceEncoderModule(this)
+
   override def shouldBeInlined = false
 }
 

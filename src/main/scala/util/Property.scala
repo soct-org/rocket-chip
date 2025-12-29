@@ -12,7 +12,9 @@ sealed abstract class PropertyType(name: String) {
 
 object PropertyType {
   object Assert extends PropertyType("Assert")
+
   object Assume extends PropertyType("Assume")
+
   object Cover extends PropertyType("Cover")
 }
 
@@ -24,9 +26,9 @@ trait BasePropertyParameters {
 }
 
 case class CoverPropertyParameters(
-    cond: Bool,
-    label: String = "",
-    message: String = "") extends BasePropertyParameters {
+                                    cond: Bool,
+                                    label: String = "",
+                                    message: String = "") extends BasePropertyParameters {
   val pType = PropertyType.Cover
 }
 
@@ -77,7 +79,7 @@ class CrossProperty(cond: Seq[Seq[CoverBoolean]], exclude: Seq[Seq[String]], mes
     if (c2.isEmpty) {
       Seq(c1)
     } else {
-      c2.map( (c: CoverBoolean) => {
+      c2.map((c: CoverBoolean) => {
         new CoverBoolean(c1.cond && c.cond, c1.labels ++ c.labels)
       })
     }
@@ -87,36 +89,42 @@ class CrossProperty(cond: Seq[Seq[CoverBoolean]], exclude: Seq[Seq[String]], mes
     if (cond.isEmpty) {
       Seq()
     } else {
-      cond.head.map( (c1: CoverBoolean) => {
+      cond.head.map((c1: CoverBoolean) => {
         listProperties(c1, crossProperties(cond.tail))
       }).reduce(_ ++ _)
     }
   }
+
   def inSequence(search: Seq[String], find: Seq[String]): Boolean = {
     if (find.isEmpty) {
       true
     } else {
-      find.map( (s:String) => {
+      find.map((s: String) => {
         search.contains(s)
-      }).reduce( _ && _ )
+      }).reduce(_ && _)
     }
   }
+
   def SeqsinSequence(search: Seq[String], find: Seq[Seq[String]]): Boolean = {
     if (find.isEmpty) {
       false
     } else {
-      find.map( (s: Seq[String]) => {
+      find.map((s: Seq[String]) => {
         inSequence(search, s)
-      }).reduce (_ || _)
+      }).reduce(_ || _)
     }
   }
 
   def generateProperties(): Seq[CoverPropertyParameters] = {
-    crossProperties(cond).filter(c => !SeqsinSequence(c.labels, exclude)).map( (c: CoverBoolean) => {
+    crossProperties(cond).filter(c => !SeqsinSequence(c.labels, exclude)).map((c: CoverBoolean) => {
       new CoverPropertyParameters(
         cond = c.cond,
-        label = c.labels.reduce( (s1: String, s2: String) => {s1 + "_" + s2} ),
-        message = message + " " + c.labels.map("<" + _ + ">").reduce ( (s1: String, s2: String) => { s1 + " X " + s2 }))
+        label = c.labels.reduce((s1: String, s2: String) => {
+          s1 + "_" + s2
+        }),
+        message = message + " " + c.labels.map("<" + _ + ">").reduce((s1: String, s2: String) => {
+          s1 + " X " + s2
+        }))
     })
   }
 
@@ -126,29 +134,35 @@ class CrossProperty(cond: Seq[Seq[CoverBoolean]], exclude: Seq[Seq[String]], mes
 // This change was made in anticipation of a proper cover library
 object cover {
   private var propLib: BasePropertyLibrary = new DefaultPropertyLibrary
+
   def setPropLib(lib: BasePropertyLibrary): Unit = this.synchronized {
     propLib = lib
   }
+
   def apply(cond: Bool)(implicit sourceInfo: SourceInfo): Unit = {
     propLib.generateProperty(CoverPropertyParameters(cond))
   }
+
   def apply(cond: Bool, label: String)(implicit sourceInfo: SourceInfo): Unit = {
     propLib.generateProperty(CoverPropertyParameters(cond, label))
   }
+
   def apply(cond: Bool, label: String, message: String)(implicit sourceInfo: SourceInfo): Unit = {
     propLib.generateProperty(CoverPropertyParameters(cond, label, message))
   }
+
   def apply(prop: BaseProperty)(implicit sourceInfo: SourceInfo): Unit = {
-    prop.generateProperties().foreach( (pp: BasePropertyParameters) => {
+    prop.generateProperties().foreach((pp: BasePropertyParameters) => {
       if (pp.pType == PropertyType.Cover) {
         propLib.generateProperty(CoverPropertyParameters(pp.cond, pp.label, pp.message))
       }
     })
   }
+
   def apply[T <: Data](rv: ReadyValidIO[T], label: String, message: String)(implicit sourceInfo: SourceInfo): Unit = {
-    apply( rv.valid &&  rv.ready, label + "_FIRE",  message + ": valid and ready")
-    apply( rv.valid && !rv.ready, label + "_STALL", message + ": valid and not ready")
-    apply(!rv.valid &&  rv.ready, label + "_IDLE",  message + ": not valid and ready")
-    apply(!rv.valid && !rv.ready, label + "_FULL",  message + ": not valid and not ready")
+    apply(rv.valid && rv.ready, label + "_FIRE", message + ": valid and ready")
+    apply(rv.valid && !rv.ready, label + "_STALL", message + ": valid and not ready")
+    apply(!rv.valid && rv.ready, label + "_IDLE", message + ": not valid and ready")
+    apply(!rv.valid && !rv.ready, label + "_FULL", message + ": not valid and not ready")
   }
 }

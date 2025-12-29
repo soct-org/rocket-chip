@@ -55,13 +55,19 @@ trait CoreParams {
   val traceHasWdata: Boolean
   val xLen: Int
   val pgLevels: Int
+
   def traceCustom: Option[Data] = None
+
   def customIsaExt: Option[String] = None
+
   def customCSRs(implicit p: Parameters): CustomCSRs = new CustomCSRs
 
   def hasSupervisorMode: Boolean = useSupervisor || useVM
+
   def instBytes: Int = instBits / 8
+
   def fetchBytes: Int = fetchWidth * instBytes
+
   def lrscCycles: Int
 
   def dcacheReqTagBits: Int = 6
@@ -69,11 +75,17 @@ trait CoreParams {
   def minFLen: Int = 32
 
   def vLen: Int = 0
+
   def eLen: Int = 0
+
   def vfLen: Int = 0
+
   def vfh: Boolean = false
+
   def vExts: Seq[String] = Nil
+
   def hasV: Boolean = vLen >= 128 && eLen >= 64 && vfLen >= 64
+
   def vMemDataBits: Int = 0
 
   def useBitmanip = useZba && useZbb && useZbs
@@ -101,9 +113,10 @@ trait HasCoreParameters extends HasTileParameters {
 
   val fetchBytes = coreParams.fetchBytes
   val coreInstBits = coreParams.instBits
-  val coreInstBytes = coreInstBits/8
+  val coreInstBytes = coreInstBits / 8
   val coreDataBits = xLen max fLen max vMemDataBits
-  val coreDataBytes = coreDataBits/8
+  val coreDataBytes = coreDataBits / 8
+
   def coreMaxAddrBits = paddrBits max vaddrBitsExtended
 
   val nBreakpoints = coreParams.nBreakpoints
@@ -116,9 +129,13 @@ trait HasCoreParameters extends HasTileParameters {
   val traceHasWdata = coreParams.traceHasWdata
 
   def vLen = coreParams.vLen
+
   def eLen = coreParams.eLen
+
   def vfLen = coreParams.vfLen
+
   def vMemDataBits = if (usingVector) coreParams.vMemDataBits else 0
+
   def maxVLMax = vLen
 
   if (usingVector) {

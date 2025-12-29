@@ -26,9 +26,12 @@ trait HasRTCModuleImp extends LazyRawModuleImp {
     // check wehther the integer division is within 5% of the real division
     require((busFreq - rtcFreq * internalPeriod) * 100 / busFreq <= 5)
 
-    withClockAndReset (domain.module.clock, domain.module.reset) {
+    withClockAndReset(domain.module.clock, domain.module.reset) {
       val (_, int_rtc_tick) = Counter(true.B, internalPeriod.toInt)
-      outer.clintTickOpt.foreach { _ := int_rtc_tick }
+      outer.clintTickOpt.foreach {
+        _ := int_rtc_tick
+      }
     }
-  }}
+  }
+  }
 }

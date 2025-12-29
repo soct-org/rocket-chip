@@ -13,26 +13,28 @@ import freechips.rocketchip.diplomacy.AddressSet
 import freechips.rocketchip.subsystem.{CanHaveMasterAXI4MMIOPort, CanHaveMasterAXI4MemPort, ExtBus, ExtMem}
 
 /** Memory with AXI port for use in elaboratable test harnesses.
- * 
+ *
  * Topology: AXIRAM <-< AXI4Buffer <-< AXI4Fragmenter <-< AXI4Xbar <-< AXI4MasterNode
-*/
+ */
 class SimAXIMem(edge: AXI4EdgeParameters, size: BigInt, base: BigInt = 0)(implicit p: Parameters) extends SimpleLazyModule {
   val node = AXI4MasterNode(List(edge.master))
   val srams = AddressSet.misaligned(base, size).map { aSet =>
     LazyModule(new AXI4RAM(
       address = aSet,
-      beatBytes = edge.bundle.dataBits/8,
-      wcorrupt=edge.slave.requestKeys.contains(AMBACorrupt)))
+      beatBytes = edge.bundle.dataBits / 8,
+      wcorrupt = edge.slave.requestKeys.contains(AMBACorrupt)))
   }
   val xbar = AXI4Xbar()
-  srams.foreach{ s => s.node := AXI4Buffer() := AXI4Fragmenter() := xbar }
+  srams.foreach { s => s.node := AXI4Buffer() := AXI4Fragmenter() := xbar }
   xbar := node
-  val io_axi4 = InModuleBody { node.makeIOs() }
+  val io_axi4 = InModuleBody {
+    node.makeIOs()
+  }
 }
 
 /**
-  * Connect Master AXI4 Mem/MMIO Port to SimAXIMem.
-  */
+ * Connect Master AXI4 Mem/MMIO Port to SimAXIMem.
+ */
 object SimAXIMem {
   def connectMMIO(dut: CanHaveMasterAXI4MMIOPort)(implicit p: Parameters): Seq[SimAXIMem] = {
     dut.mmio_axi4.zip(dut.mmioAXI4Node.in).map { case (io, (_, edge)) =>

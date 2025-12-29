@@ -6,6 +6,8 @@ import chisel3._
 import org.chipsalliance.cde.config.Parameters
 
 class TestHarness(implicit val p: Parameters) extends Module {
-  val io = IO(new Bundle { val success = Output(Bool()) })
+  val io = IO(new Bundle {
+    val success = Output(Bool())
+  })
   io.success := Module(new UnitTestSuite).io.finished
 }

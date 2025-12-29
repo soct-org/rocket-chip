@@ -33,10 +33,11 @@ class PMAChecker(manager: TLSlavePortParameters)(implicit p: Parameters) extends
 
   // PMA
   // check exist a slave can consume this address.
-  val legal_address = manager.findSafe(io.paddr).reduce(_||_)
+  val legal_address = manager.findSafe(io.paddr).reduce(_ || _)
+
   // check utility to help check SoC property.
   def fastCheck(member: TLManagerParameters => Boolean) =
-    legal_address && manager.fastProperty(io.paddr, member, (b:Boolean) => b.B)
+    legal_address && manager.fastProperty(io.paddr, member, (b: Boolean) => b.B)
 
   io.resp.cacheable := fastCheck(_.supportsAcquireB)
   io.resp.r := fastCheck(_.supportsGet)

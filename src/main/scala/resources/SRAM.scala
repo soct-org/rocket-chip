@@ -10,12 +10,11 @@ import freechips.rocketchip.util.{DescribedSRAM, Code}
 import freechips.rocketchip.diplomacy.AddressSet
 
 abstract class DiplomaticSRAM(
-    val address: AddressSet,
-    beatBytes: Int,
-    devName: Option[String],
-    dtsCompat: Option[Seq[String]] = None,
-    devOverride: Option[Device with DeviceRegName] = None)(implicit p: Parameters) extends LazyModule
-{
+                               val address: AddressSet,
+                               beatBytes: Int,
+                               devName: Option[String],
+                               dtsCompat: Option[Seq[String]] = None,
+                               devOverride: Option[Device with DeviceRegName] = None)(implicit p: Parameters) extends LazyModule {
   val device = devOverride.getOrElse(devName
     .map(new SimpleDevice(_, dtsCompat.getOrElse(Seq("sifive,sram0"))))
     .getOrElse(new MemoryDevice())
@@ -32,7 +31,7 @@ abstract class DiplomaticSRAM(
   def makeSinglePortedByteWriteSeqMem(size: BigInt, lanes: Int = beatBytes, bits: Int = 8) = {
     // We require the address range to include an entire beat (for the write mask)
 
-    val mem  =  DescribedSRAM(
+    val mem = DescribedSRAM(
       name = devName.getOrElse("mem"),
       desc = devName.getOrElse("mem"),
       size = size,
@@ -45,26 +44,26 @@ abstract class DiplomaticSRAM(
 }
 
 /** Represents a single seq mem mapped to a single, contiguous address space
-  */
+ */
 trait HasJustOneSeqMem {
 
   /** A reference to the chisel memory mapped to this address
-    *
-    * Each element of the Vec type is a lane
-    */
+   *
+   * Each element of the Vec type is a lane
+   */
   def mem: SyncReadMem[Vec[UInt]]
 
   /** The number of bits used for data in a single lane
-    *
-    * laneDataBits + laneECCBits should equal the total width of a lane
-    */
+   *
+   * laneDataBits + laneECCBits should equal the total width of a lane
+   */
   def laneDataBits: Int
 
-    /** The ecc code used by this memory
-    */
+  /** The ecc code used by this memory
+   */
   def eccCode: Option[Code]
 
   /** The address set this memory is mapped to
-    */
+   */
   def address: AddressSet
 }

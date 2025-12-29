@@ -7,8 +7,7 @@ import scala.language.implicitConversions
 import org.chipsalliance.diplomacy.nodes._
 import freechips.rocketchip.diplomacy.{BufferParams}
 
-package object prci
-{
+package object prci {
   type ClockInwardNode = InwardNodeHandle[ClockSourceParameters, ClockSinkParameters, ClockEdgeParameters, ClockBundle]
   type ClockOutwardNode = OutwardNodeHandle[ClockSourceParameters, ClockSinkParameters, ClockEdgeParameters, ClockBundle]
   type ClockNode = NodeHandle[ClockSourceParameters, ClockSinkParameters, ClockEdgeParameters, ClockBundle, ClockSourceParameters, ClockSinkParameters, ClockEdgeParameters, ClockBundle]

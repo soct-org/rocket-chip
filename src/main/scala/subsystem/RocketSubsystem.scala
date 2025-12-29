@@ -11,18 +11,20 @@ import freechips.rocketchip.tile.{RocketTile, RocketTileParams}
 import freechips.rocketchip.util.HasCoreMonitorBundles
 
 case class RocketCrossingParams(
-  crossingType: ClockCrossingType = SynchronousCrossing(),
-  master: HierarchicalElementPortParamsLike = HierarchicalElementMasterPortParams(),
-  slave: HierarchicalElementSlavePortParams = HierarchicalElementSlavePortParams(),
-  mmioBaseAddressPrefixWhere: TLBusWrapperLocation = CBUS,
-  resetCrossingType: ResetCrossingType = NoResetCrossing(),
-  forceSeparateClockReset: Boolean = false
-) extends HierarchicalElementCrossingParamsLike
+                                 crossingType: ClockCrossingType = SynchronousCrossing(),
+                                 master: HierarchicalElementPortParamsLike = HierarchicalElementMasterPortParams(),
+                                 slave: HierarchicalElementSlavePortParams = HierarchicalElementSlavePortParams(),
+                                 mmioBaseAddressPrefixWhere: TLBusWrapperLocation = CBUS,
+                                 resetCrossingType: ResetCrossingType = NoResetCrossing(),
+                                 forceSeparateClockReset: Boolean = false
+                               ) extends HierarchicalElementCrossingParamsLike
 
 case class RocketTileAttachParams(
-  tileParams: RocketTileParams,
-  crossingParams: RocketCrossingParams
-) extends CanAttachTile { type TileType = RocketTile }
+                                   tileParams: RocketTileParams,
+                                   crossingParams: RocketCrossingParams
+                                 ) extends CanAttachTile {
+  type TileType = RocketTile
+}
 
 trait HasRocketTiles {
   this: BaseSubsystem with InstantiatesHierarchicalElements =>
@@ -34,22 +36,21 @@ trait HasRocketTiles {
 }
 
 class RocketSubsystem(implicit p: Parameters) extends BaseSubsystem
-    with InstantiatesHierarchicalElements
-    with HasTileNotificationSinks
-    with HasTileInputConstants
-    with CanHavePeripheryCLINT
-    with CanHavePeripheryPLIC
-    with HasPeripheryDebug
-    with HasHierarchicalElementsRootContext
-    with HasHierarchicalElements
-    with HasCoreMonitorBundles
-    with HasRocketTiles
-{
+  with InstantiatesHierarchicalElements
+  with HasTileNotificationSinks
+  with HasTileInputConstants
+  with CanHavePeripheryCLINT
+  with CanHavePeripheryPLIC
+  with HasPeripheryDebug
+  with HasHierarchicalElementsRootContext
+  with HasHierarchicalElements
+  with HasCoreMonitorBundles
+  with HasRocketTiles {
   override lazy val module = new RocketSubsystemModuleImp(this)
 }
 
 class RocketSubsystemModuleImp[+L <: RocketSubsystem](_outer: L) extends BaseSubsystemModuleImp(_outer)
-    with HasHierarchicalElementsRootContextModuleImp {
+  with HasHierarchicalElementsRootContextModuleImp {
   override lazy val outer = _outer
 }
 

@@ -12,17 +12,23 @@ object ClientStates {
   val width = 2
 
   def Nothing = 0.U(width.W)
-  def Branch  = 1.U(width.W)
-  def Trunk   = 2.U(width.W)
-  def Dirty   = 3.U(width.W)
+
+  def Branch = 1.U(width.W)
+
+  def Trunk = 2.U(width.W)
+
+  def Dirty = 3.U(width.W)
 
   def hasReadPermission(state: UInt): Bool = state > Nothing
+
   def hasWritePermission(state: UInt): Bool = state > Branch
 }
 
 object MemoryOpCategories extends MemoryOpConstants {
-  def wr = Cat(true.B, true.B)   // Op actually writes
-  def wi = Cat(false.B, true.B)  // Future op will write
+  def wr = Cat(true.B, true.B) // Op actually writes
+
+  def wi = Cat(false.B, true.B) // Future op will write
+
   def rd = Cat(false.B, false.B) // Op only reads
 
   def categorize(cmd: UInt): UInt = {
@@ -33,17 +39,19 @@ object MemoryOpCategories extends MemoryOpConstants {
 }
 
 /** Stores the client-side coherence information,
-  * such as permissions on the data and whether the data is dirty.
-  * Its API can be used to make TileLink messages in response to
-  * memory operations, cache control oeprations, or Probe messages.
-  */
+ * such as permissions on the data and whether the data is dirty.
+ * Its API can be used to make TileLink messages in response to
+ * memory operations, cache control oeprations, or Probe messages.
+ */
 class ClientMetadata extends Bundle {
   /** Actual state information stored in this bundle */
   val state = UInt(ClientStates.width.W)
 
   /** Metadata equality */
   def ===(rhs: UInt): Bool = state === rhs
+
   def ===(rhs: ClientMetadata): Bool = state === rhs.state
+
   def =/=(rhs: ClientMetadata): Bool = !this.===(rhs)
 
   /** Is the block's data present in this cache */
@@ -56,25 +64,25 @@ class ClientMetadata extends Bundle {
     import ClientStates._
     val c = categorize(cmd)
     MuxTLookup(Cat(c, state), (false.B, 0.U), Seq(
-    //(effect, am now) -> (was a hit,   next)
-      Cat(rd, Dirty)   -> (true.B,  Dirty),
-      Cat(rd, Trunk)   -> (true.B,  Trunk),
-      Cat(rd, Branch)  -> (true.B,  Branch),
-      Cat(wi, Dirty)   -> (true.B,  Dirty),
-      Cat(wi, Trunk)   -> (true.B,  Trunk),
-      Cat(wr, Dirty)   -> (true.B,  Dirty),
-      Cat(wr, Trunk)   -> (true.B,  Dirty),
-    //(effect, am now) -> (was a miss,  param)
+      //(effect, am now) -> (was a hit,   next)
+      Cat(rd, Dirty) -> (true.B, Dirty),
+      Cat(rd, Trunk) -> (true.B, Trunk),
+      Cat(rd, Branch) -> (true.B, Branch),
+      Cat(wi, Dirty) -> (true.B, Dirty),
+      Cat(wi, Trunk) -> (true.B, Trunk),
+      Cat(wr, Dirty) -> (true.B, Dirty),
+      Cat(wr, Trunk) -> (true.B, Dirty),
+      //(effect, am now) -> (was a miss,  param)
       Cat(rd, Nothing) -> (false.B, NtoB),
-      Cat(wi, Branch)  -> (false.B, BtoT),
+      Cat(wi, Branch) -> (false.B, BtoT),
       Cat(wi, Nothing) -> (false.B, NtoT),
-      Cat(wr, Branch)  -> (false.B, BtoT),
+      Cat(wr, Branch) -> (false.B, BtoT),
       Cat(wr, Nothing) -> (false.B, NtoT)))
   }
 
   /** Determine what state to go to after miss based on Grant param
-    * For now, doesn't depend on state (which may have been Probed).
-    */
+   * For now, doesn't depend on state (which may have been Probed).
+   */
   private def growFinisher(cmd: UInt, param: UInt): UInt = {
     import MemoryOpCategories._
     import TLPermissions._
@@ -82,15 +90,15 @@ class ClientMetadata extends Bundle {
     val c = categorize(cmd)
     //assert(c === rd || param === toT, "Client was expecting trunk permissions.")
     MuxLookup(Cat(c, param), Nothing)(Seq(
-    //(effect param) -> (next)
-      Cat(rd, toB)   -> Branch,
-      Cat(rd, toT)   -> Trunk,
-      Cat(wi, toT)   -> Trunk,
-      Cat(wr, toT)   -> Dirty))
+      //(effect param) -> (next)
+      Cat(rd, toB) -> Branch,
+      Cat(rd, toT) -> Trunk,
+      Cat(wi, toT) -> Trunk,
+      Cat(wr, toT) -> Dirty))
   }
 
   /** Does this cache have permissions on this block sufficient to perform op,
-    * and what to do next (Acquire message param or updated metadata). */
+   * and what to do next (Acquire message param or updated metadata). */
   def onAccess(cmd: UInt): (Bool, UInt, ClientMetadata) = {
     val r = growStarter(cmd)
     (r._1, r._2, ClientMetadata(r._2))
@@ -118,18 +126,18 @@ class ClientMetadata extends Bundle {
     import ClientStates._
     import TLPermissions._
     MuxTLookup(Cat(param, state), (false.B, 0.U, 0.U), Seq(
-    //(wanted, am now)  -> (hasDirtyData resp, next)
-      Cat(toT, Dirty)   -> (true.B,  TtoT, Trunk),
-      Cat(toT, Trunk)   -> (false.B, TtoT, Trunk),
-      Cat(toT, Branch)  -> (false.B, BtoB, Branch),
+      //(wanted, am now)  -> (hasDirtyData resp, next)
+      Cat(toT, Dirty) -> (true.B, TtoT, Trunk),
+      Cat(toT, Trunk) -> (false.B, TtoT, Trunk),
+      Cat(toT, Branch) -> (false.B, BtoB, Branch),
       Cat(toT, Nothing) -> (false.B, NtoN, Nothing),
-      Cat(toB, Dirty)   -> (true.B,  TtoB, Branch),
-      Cat(toB, Trunk)   -> (false.B, TtoB, Branch),  // Policy: Don't notify on clean downgrade
-      Cat(toB, Branch)  -> (false.B, BtoB, Branch),
+      Cat(toB, Dirty) -> (true.B, TtoB, Branch),
+      Cat(toB, Trunk) -> (false.B, TtoB, Branch), // Policy: Don't notify on clean downgrade
+      Cat(toB, Branch) -> (false.B, BtoB, Branch),
       Cat(toB, Nothing) -> (false.B, NtoN, Nothing),
-      Cat(toN, Dirty)   -> (true.B,  TtoN, Nothing),
-      Cat(toN, Trunk)   -> (false.B, TtoN, Nothing), // Policy: Don't notify on clean downgrade
-      Cat(toN, Branch)  -> (false.B, BtoN, Nothing), // Policy: Don't notify on clean downgrade
+      Cat(toN, Dirty) -> (true.B, TtoN, Nothing),
+      Cat(toN, Trunk) -> (false.B, TtoN, Nothing), // Policy: Don't notify on clean downgrade
+      Cat(toN, Branch) -> (false.B, BtoN, Nothing), // Policy: Don't notify on clean downgrade
       Cat(toN, Nothing) -> (false.B, NtoN, Nothing)))
   }
 
@@ -138,9 +146,9 @@ class ClientMetadata extends Bundle {
     import MemoryOpCategories._
     import TLPermissions._
     MuxLookup(cmd, toN)(Seq(
-      M_FLUSH   -> toN,
+      M_FLUSH -> toN,
       M_PRODUCE -> toB,
-      M_CLEAN   -> toT))
+      M_CLEAN -> toT))
   }
 
   def onCacheControl(cmd: UInt): (Bool, UInt, ClientMetadata) = {
@@ -148,7 +156,7 @@ class ClientMetadata extends Bundle {
     (r._1, r._2, ClientMetadata(r._3))
   }
 
-  def onProbe(param: UInt): (Bool, UInt, ClientMetadata) = { 
+  def onProbe(param: UInt): (Bool, UInt, ClientMetadata) = {
     val r = shrinkHelper(param)
     (r._1, r._2, ClientMetadata(r._3))
   }
@@ -161,6 +169,8 @@ object ClientMetadata {
     meta.state := perm
     meta
   }
+
   def onReset = ClientMetadata(ClientStates.Nothing)
+
   def maximum = ClientMetadata(ClientStates.Dirty)
 }

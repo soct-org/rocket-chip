@@ -27,7 +27,7 @@ class TestHarness()(implicit p: Parameters) extends Module {
   dut.tieOffInterrupts()
   SimAXIMem.connectMem(ldut)
   SimAXIMem.connectMMIO(ldut)
-  ldut.l2_frontend_bus_axi4.foreach( a => {
+  ldut.l2_frontend_bus_axi4.foreach(a => {
     a.ar.valid := false.B
     a.ar.bits := DontCare
     a.aw.valid := false.B

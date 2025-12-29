@@ -60,13 +60,13 @@ class RoCCIO(val nPTWPorts: Int, nRoCCCSRs: Int)(implicit p: Parameters) extends
   val fpu_resp = Flipped(Decoupled(new FPResult))
 }
 
-/** Base classes for Diplomatic TL2 RoCC units **/
+/** Base classes for Diplomatic TL2 RoCC units * */
 abstract class LazyRoCC(
-  val opcodes: OpcodeSet,
-  val nPTWPorts: Int = 0,
-  val usesFPU: Boolean = false,
-  val roccCSRs: Seq[CustomCSR] = Nil
-)(implicit p: Parameters) extends LazyModule {
+                         val opcodes: OpcodeSet,
+                         val nPTWPorts: Int = 0,
+                         val usesFPU: Boolean = false,
+                         val roccCSRs: Seq[CustomCSR] = Nil
+                       )(implicit p: Parameters) extends LazyModule {
   val module: LazyRoCCModuleImp
   require(roccCSRs.map(_.id).toSet.size == roccCSRs.size)
   val atlNode: TLNode = TLIdentityNode()
@@ -79,9 +79,10 @@ class LazyRoCCModuleImp(outer: LazyRoCC) extends LazyModuleImp(outer) {
   io := DontCare
 }
 
-/** Mixins for including RoCC **/
+/** Mixins for including RoCC * */
 
-trait HasLazyRoCC extends CanHavePTW { this: BaseTile =>
+trait HasLazyRoCC extends CanHavePTW {
+  this: BaseTile =>
   val roccs = p(BuildRoCC).map(_(p))
   val roccCSRs = roccs.map(_.roccCSRs) // the set of custom CSRs requested by all roccs
   require(roccCSRs.flatten.map(_.id).toSet.size == roccCSRs.flatten.size,
@@ -95,9 +96,10 @@ trait HasLazyRoCC extends CanHavePTW { this: BaseTile =>
 }
 
 trait HasLazyRoCCModule extends CanHavePTWModule
-    with HasCoreParameters { this: RocketTileModuleImp =>
+  with HasCoreParameters {
+  this: RocketTileModuleImp =>
 
-  val (respArb, cmdRouter) = if(outer.roccs.nonEmpty) {
+  val (respArb, cmdRouter) = if (outer.roccs.nonEmpty) {
     val respArb = Module(new RRArbiter(new RoCCResponse()(outer.p), outer.roccs.size))
     val cmdRouter = Module(new RoccCommandRouter(outer.roccs.map(_.opcodes))(outer.p))
     outer.roccs.zipWithIndex.foreach { case (rocc, i) =>
@@ -120,35 +122,37 @@ class AccumulatorExample(opcodes: OpcodeSet, val n: Int = 4)(implicit p: Paramet
 }
 
 class AccumulatorExampleModuleImp(outer: AccumulatorExample)(implicit p: Parameters) extends LazyRoCCModuleImp(outer)
-    with HasCoreParameters {
+  with HasCoreParameters {
   val regfile = Mem(outer.n, UInt(xLen.W))
-  val busy = RegInit(VecInit(Seq.fill(outer.n){false.B}))
+  val busy = RegInit(VecInit(Seq.fill(outer.n) {
+    false.B
+  }))
 
   val cmd = Queue(io.cmd)
   val funct = cmd.bits.inst.funct
-  val addr = cmd.bits.rs2(log2Up(outer.n)-1,0)
+  val addr = cmd.bits.rs2(log2Up(outer.n) - 1, 0)
   val doWrite = funct === 0.U
   val doRead = funct === 1.U
   val doLoad = funct === 2.U
   val doAccum = funct === 3.U
-  val memRespTag = io.mem.resp.bits.tag(log2Up(outer.n)-1,0)
+  val memRespTag = io.mem.resp.bits.tag(log2Up(outer.n) - 1, 0)
 
   // datapath
   val addend = cmd.bits.rs1
   val accum = regfile(addr)
   val wdata = Mux(doWrite, addend, accum + addend)
 
-  when (cmd.fire && (doWrite || doAccum)) {
+  when(cmd.fire && (doWrite || doAccum)) {
     regfile(addr) := wdata
   }
 
-  when (io.mem.resp.valid) {
+  when(io.mem.resp.valid) {
     regfile(memRespTag) := io.mem.resp.bits.data
     busy(memRespTag) := false.B
   }
 
   // control
-  when (io.mem.req.fire) {
+  when(io.mem.req.fire) {
     busy(addr) := true.B
   }
 
@@ -158,20 +162,20 @@ class AccumulatorExampleModuleImp(outer: AccumulatorExample)(implicit p: Paramet
   val stallResp = doResp && !io.resp.ready
 
   cmd.ready := !stallReg && !stallLoad && !stallResp
-    // command resolved if no stalls AND not issuing a load that will need a request
+  // command resolved if no stalls AND not issuing a load that will need a request
 
   // PROC RESPONSE INTERFACE
   io.resp.valid := cmd.valid && doResp && !stallReg && !stallLoad
-    // valid response if valid command, need a response, and no stalls
+  // valid response if valid command, need a response, and no stalls
   io.resp.bits.rd := cmd.bits.inst.rd
-    // Must respond with the appropriate tag or undefined behavior
+  // Must respond with the appropriate tag or undefined behavior
   io.resp.bits.data := accum
-    // Semantics is to always send out prior accumulator register value
+  // Semantics is to always send out prior accumulator register value
 
-  io.busy := cmd.valid || busy.reduce(_||_)
-    // Be busy when have pending memory requests or committed possibility of pending requests
+  io.busy := cmd.valid || busy.reduce(_ || _)
+  // Be busy when have pending memory requests or committed possibility of pending requests
   io.interrupt := false.B
-    // Set this true to trigger an interrupt on the processor (please refer to supervisor documentation)
+  // Set this true to trigger an interrupt on the processor (please refer to supervisor documentation)
 
   // MEMORY REQUEST INTERFACE
   io.mem.req.valid := cmd.valid && doLoad && !stallReg && !stallResp
@@ -187,12 +191,12 @@ class AccumulatorExampleModuleImp(outer: AccumulatorExample)(implicit p: Paramet
   io.mem.req.bits.no_resp := false.B
 }
 
-class  TranslatorExample(opcodes: OpcodeSet)(implicit p: Parameters) extends LazyRoCC(opcodes, nPTWPorts = 1) {
+class TranslatorExample(opcodes: OpcodeSet)(implicit p: Parameters) extends LazyRoCC(opcodes, nPTWPorts = 1) {
   override lazy val module = new TranslatorExampleModuleImp(this)
 }
 
 class TranslatorExampleModuleImp(outer: TranslatorExample)(implicit p: Parameters) extends LazyRoCCModuleImp(outer)
-    with HasCoreParameters {
+  with HasCoreParameters {
   val req_addr = Reg(UInt(coreMaxAddrBits.W))
   val req_rd = Reg(chiselTypeOf(io.resp.bits.rd))
   val req_offset = req_addr(pgIdxBits - 1, 0)
@@ -204,7 +208,7 @@ class TranslatorExampleModuleImp(outer: TranslatorExample)(implicit p: Parameter
 
   io.cmd.ready := (state === s_idle)
 
-  when (io.cmd.fire) {
+  when(io.cmd.fire) {
     req_rd := io.cmd.bits.inst.rd
     req_addr := io.cmd.bits.rs1
     state := s_ptw_req
@@ -212,14 +216,18 @@ class TranslatorExampleModuleImp(outer: TranslatorExample)(implicit p: Parameter
 
   private val ptw = io.ptw(0)
 
-  when (ptw.req.fire) { state := s_ptw_resp }
+  when(ptw.req.fire) {
+    state := s_ptw_resp
+  }
 
-  when (state === s_ptw_resp && ptw.resp.valid) {
+  when(state === s_ptw_resp && ptw.resp.valid) {
     pte := ptw.resp.bits.pte
     state := s_resp
   }
 
-  when (io.resp.fire) { state := s_idle }
+  when(io.resp.fire) {
+    state := s_idle
+  }
 
   ptw.req.valid := (state === s_ptw_req)
   ptw.req.bits.valid := true.B
@@ -234,7 +242,7 @@ class TranslatorExampleModuleImp(outer: TranslatorExample)(implicit p: Parameter
   io.mem.req.valid := false.B
 }
 
-class  CharacterCountExample(opcodes: OpcodeSet)(implicit p: Parameters) extends LazyRoCC(opcodes) {
+class CharacterCountExample(opcodes: OpcodeSet)(implicit p: Parameters) extends LazyRoCC(opcodes) {
   override lazy val module = new CharacterCountExampleModuleImp(this)
   override val atlNode = TLClientNode(Seq(TLMasterPortParameters.v1(Seq(TLMasterParameters.v1("CharacterCountRoCC")))))
 }
@@ -245,7 +253,7 @@ class CharacterCountExampleModuleImp(outer: CharacterCountExample)(implicit p: P
   val cacheParams = tileParams.dcache.get
 
   private val blockOffset = blockOffBits
-  private val beatOffset = log2Up(cacheDataBits/8)
+  private val beatOffset = log2Up(cacheDataBits / 8)
 
   val needle = Reg(UInt(8.W))
   val addr = Reg(UInt(coreMaxAddrBits.W))
@@ -262,9 +270,9 @@ class CharacterCountExampleModuleImp(outer: CharacterCountExample)(implicit p: P
   val (tl_out, edgesOut) = outer.atlNode.out(0)
   val gnt = tl_out.d.bits
   val recv_data = Reg(UInt(cacheDataBits.W))
-  val recv_beat = RegInit(0.U(log2Up(cacheDataBeats+1).W))
+  val recv_beat = RegInit(0.U(log2Up(cacheDataBeats + 1).W))
 
-  val data_bytes = VecInit(Seq.tabulate(cacheDataBits/8) { i => recv_data(8 * (i + 1) - 1, 8 * i) })
+  val data_bytes = VecInit(Seq.tabulate(cacheDataBits / 8) { i => recv_data(8 * (i + 1) - 1, 8 * i) })
   val zero_match = data_bytes.map(_ === 0.U)
   val needle_match = data_bytes.map(_ === needle)
   val first_zero = PriorityEncoder(zero_match)
@@ -283,12 +291,12 @@ class CharacterCountExampleModuleImp(outer: CharacterCountExample)(implicit p: P
   io.resp.bits.data := count
   tl_out.a.valid := (state === s_acq)
   tl_out.a.bits := edgesOut.Get(
-                       fromSource = 0.U,
-                       toAddress = addr_block << blockOffset,
-                       lgSize = lgCacheBlockBytes.U)._2
+    fromSource = 0.U,
+    toAddress = addr_block << blockOffset,
+    lgSize = lgCacheBlockBytes.U)._2
   tl_out.d.ready := (state === s_gnt)
 
-  when (io.cmd.fire) {
+  when(io.cmd.fire) {
     addr := io.cmd.bits.rs1
     needle := io.cmd.bits.rs2
     resp_rd := io.cmd.bits.inst.rd
@@ -297,29 +305,35 @@ class CharacterCountExampleModuleImp(outer: CharacterCountExample)(implicit p: P
     state := s_acq
   }
 
-  when (tl_out.a.fire) { state := s_gnt }
+  when(tl_out.a.fire) {
+    state := s_gnt
+  }
 
-  when (tl_out.d.fire) {
+  when(tl_out.d.fire) {
     recv_beat := recv_beat + 1.U
     recv_data := gnt.data
     state := s_check
   }
 
-  when (state === s_check) {
-    when (!finished) {
+  when(state === s_check) {
+    when(!finished) {
       count := count + chars_found
     }
-    when (zero_found) { finished := true.B }
-    when (recv_beat === cacheDataBeats.U) {
+    when(zero_found) {
+      finished := true.B
+    }
+    when(recv_beat === cacheDataBeats.U) {
       addr := next_addr
       state := Mux(zero_found || finished, s_resp, s_acq)
       recv_beat := 0.U
-    } .otherwise {
+    }.otherwise {
       state := s_gnt
     }
   }
 
-  when (io.resp.fire) { state := s_idle }
+  when(io.resp.fire) {
+    state := s_idle
+  }
 
   io.busy := (state =/= s_idle)
   io.interrupt := false.B
@@ -331,38 +345,40 @@ class CharacterCountExampleModuleImp(outer: CharacterCountExample)(implicit p: P
 }
 
 class BlackBoxExample(opcodes: OpcodeSet, blackBoxFile: String)(implicit p: Parameters)
-    extends LazyRoCC(opcodes) {
+  extends LazyRoCC(opcodes) {
   override lazy val module = new BlackBoxExampleModuleImp(this, blackBoxFile)
 }
 
 class BlackBoxExampleModuleImp(outer: BlackBoxExample, blackBoxFile: String)(implicit p: Parameters)
-    extends LazyRoCCModuleImp(outer)
+  extends LazyRoCCModuleImp(outer)
     with RequireSyncReset
     with HasCoreParameters {
 
   val blackbox = {
     val roccIo = io
     Module(
-      new BlackBox( Map( "xLen" -> IntParam(xLen),
-                         "PRV_SZ" -> IntParam(PRV.SZ),
-                         "coreMaxAddrBits" -> IntParam(coreMaxAddrBits),
-                         "dcacheReqTagBits" -> IntParam(roccIo.mem.req.bits.tag.getWidth),
-                         "M_SZ" -> IntParam(M_SZ),
-                         "mem_req_bits_size_width" -> IntParam(roccIo.mem.req.bits.size.getWidth),
-                         "coreDataBits" -> IntParam(coreDataBits),
-                         "coreDataBytes" -> IntParam(coreDataBytes),
-                         "paddrBits" -> IntParam(paddrBits),
-                         "vaddrBitsExtended" -> IntParam(vaddrBitsExtended),
-                         "FPConstants_RM_SZ" -> IntParam(FPConstants.RM_SZ),
-                         "fLen" -> IntParam(fLen),
-                         "FPConstants_FLAGS_SZ" -> IntParam(FPConstants.FLAGS_SZ)
-                   ) ) with HasBlackBoxResource {
-        val io = IO( new Bundle {
-                      val clock = Input(Clock())
-                      val reset = Input(Reset())
-                      val rocc = chiselTypeOf(roccIo)
-                    })
+      new BlackBox(Map("xLen" -> IntParam(xLen),
+        "PRV_SZ" -> IntParam(PRV.SZ),
+        "coreMaxAddrBits" -> IntParam(coreMaxAddrBits),
+        "dcacheReqTagBits" -> IntParam(roccIo.mem.req.bits.tag.getWidth),
+        "M_SZ" -> IntParam(M_SZ),
+        "mem_req_bits_size_width" -> IntParam(roccIo.mem.req.bits.size.getWidth),
+        "coreDataBits" -> IntParam(coreDataBits),
+        "coreDataBytes" -> IntParam(coreDataBytes),
+        "paddrBits" -> IntParam(paddrBits),
+        "vaddrBitsExtended" -> IntParam(vaddrBitsExtended),
+        "FPConstants_RM_SZ" -> IntParam(FPConstants.RM_SZ),
+        "fLen" -> IntParam(fLen),
+        "FPConstants_FLAGS_SZ" -> IntParam(FPConstants.FLAGS_SZ)
+      )) with HasBlackBoxResource {
+        val io = IO(new Bundle {
+          val clock = Input(Clock())
+          val reset = Input(Reset())
+          val rocc = chiselTypeOf(roccIo)
+        })
+
         override def desiredName: String = blackBoxFile
+
         addResource(s"/vsrc/$blackBoxFile.v")
       }
     )
@@ -391,14 +407,18 @@ class OpcodeSet(val opcodes: Seq[UInt]) {
 
 object OpcodeSet {
   def custom0 = new OpcodeSet(Seq("b0001011".U))
+
   def custom1 = new OpcodeSet(Seq("b0101011".U))
+
   def custom2 = new OpcodeSet(Seq("b1011011".U))
+
   def custom3 = new OpcodeSet(Seq("b1111011".U))
+
   def all = custom0 | custom1 | custom2 | custom3
 }
 
 class RoccCommandRouter(opcodes: Seq[OpcodeSet])(implicit p: Parameters)
-    extends CoreModule()(p) {
+  extends CoreModule()(p) {
   val io = IO(new Bundle {
     val in = Flipped(Decoupled(new RoCCCommand))
     val out = Vec(opcodes.size, Decoupled(new RoCCCommand))

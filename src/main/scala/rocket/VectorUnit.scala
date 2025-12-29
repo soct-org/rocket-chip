@@ -8,17 +8,17 @@ import freechips.rocketchip.tile._
 import freechips.rocketchip.tilelink._
 
 case class RocketCoreVectorParams(
-  build: Parameters => RocketVectorUnit,
-  vLen: Int,
-  eLen: Int,
-  vfLen: Int,
-  vfh: Boolean,
-  vMemDataBits: Int,
-  decoder: Parameters => RocketVectorDecoder,
-  useDCache: Boolean,
-  issueVConfig: Boolean,
-  vExts: Seq[String]
-)
+                                   build: Parameters => RocketVectorUnit,
+                                   vLen: Int,
+                                   eLen: Int,
+                                   vfLen: Int,
+                                   vfh: Boolean,
+                                   vMemDataBits: Int,
+                                   decoder: Parameters => RocketVectorDecoder,
+                                   useDCache: Boolean,
+                                   issueVConfig: Boolean,
+                                   vExts: Seq[String]
+                                 )
 
 class VectorCoreIO(implicit p: Parameters) extends CoreBundle()(p) {
   val status = Input(new MStatus)

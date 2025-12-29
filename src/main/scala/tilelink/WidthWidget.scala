@@ -12,44 +12,49 @@ import freechips.rocketchip.diplomacy.AddressSet
 import freechips.rocketchip.util.{Repeater, UIntToOH1}
 
 // innBeatBytes => the new client-facing bus width
-class TLWidthWidget(innerBeatBytes: Int)(implicit p: Parameters) extends LazyModule
-{
+class TLWidthWidget(innerBeatBytes: Int)(implicit p: Parameters) extends LazyModule {
   private def noChangeRequired(manager: TLManagerPortParameters) = manager.beatBytes == innerBeatBytes
+
   val node = new TLAdapterNode(
-    clientFn  = { case c => c },
-    managerFn = { case m => m.v1copy(beatBytes = innerBeatBytes) }){
+    clientFn = {
+      case c => c
+    },
+    managerFn = {
+      case m => m.v1copy(beatBytes = innerBeatBytes)
+    }) {
     override def circuitIdentity = edges.out.map(_.manager).forall(noChangeRequired)
   }
 
   override lazy val desiredName = s"TLWidthWidget$innerBeatBytes"
 
   lazy val module = new Impl
+
   class Impl extends LazyModuleImp(this) {
     def merge[T <: TLDataChannel](edgeIn: TLEdge, in: DecoupledIO[T], edgeOut: TLEdge, out: DecoupledIO[T]) = {
       val inBytes = edgeIn.manager.beatBytes
       val outBytes = edgeOut.manager.beatBytes
       val ratio = outBytes / inBytes
-      val keepBits  = log2Ceil(outBytes)
-      val dropBits  = log2Ceil(inBytes)
+      val keepBits = log2Ceil(outBytes)
+      val dropBits = log2Ceil(inBytes)
       val countBits = log2Ceil(ratio)
 
-      val size    = edgeIn.size(in.bits)
+      val size = edgeIn.size(in.bits)
       val hasData = edgeIn.hasData(in.bits)
-      val limit   = UIntToOH1(size, keepBits) >> dropBits
+      val limit = UIntToOH1(size, keepBits) >> dropBits
 
-      val count  = RegInit(0.U(countBits.W))
-      val first  = count === 0.U
-      val last   = count === limit || !hasData
+      val count = RegInit(0.U(countBits.W))
+      val first = count === 0.U
+      val last = count === limit || !hasData
       val enable = Seq.tabulate(ratio) { i => !((count ^ i.U) & limit).orR }
 
       val corrupt_reg = RegInit(false.B)
       val corrupt_in = edgeIn.corrupt(in.bits)
       val corrupt_out = corrupt_in || corrupt_reg
 
-      when (in.fire) {
+      when(in.fire) {
         count := count + 1.U
         corrupt_reg := corrupt_out
-        when (last) {
+        when(last) {
           count := 0.U
           corrupt_reg := false.B
         }
@@ -62,11 +67,13 @@ class TLWidthWidget(innerBeatBytes: Int)(implicit p: Parameters) extends LazyMod
         val rdata_written_once = RegInit(false.B)
         val masked_enable = enable.map(_ || !rdata_written_once)
 
-        val odata = Seq.fill(ratio) { WireInit(idata) }
-        val rdata = Reg(Vec(ratio-1, chiselTypeOf(idata)))
+        val odata = Seq.fill(ratio) {
+          WireInit(idata)
+        }
+        val rdata = Reg(Vec(ratio - 1, chiselTypeOf(idata)))
         val pdata = rdata :+ idata
         val mdata = (masked_enable zip (odata zip pdata)) map { case (e, (o, p)) => Mux(e, o, p) }
-        when (in.fire && !last) {
+        when(in.fire && !last) {
           rdata_written_once := true.B
           (rdata zip mdata) foreach { case (r, m) => r := m }
         }
@@ -94,28 +101,30 @@ class TLWidthWidget(innerBeatBytes: Int)(implicit p: Parameters) extends LazyMod
       val inBytes = edgeIn.manager.beatBytes
       val outBytes = edgeOut.manager.beatBytes
       val ratio = inBytes / outBytes
-      val keepBits  = log2Ceil(inBytes)
-      val dropBits  = log2Ceil(outBytes)
+      val keepBits = log2Ceil(inBytes)
+      val dropBits = log2Ceil(outBytes)
       val countBits = log2Ceil(ratio)
 
-      val size    = edgeIn.size(in.bits)
+      val size = edgeIn.size(in.bits)
       val hasData = edgeIn.hasData(in.bits)
-      val limit   = UIntToOH1(size, keepBits) >> dropBits
+      val limit = UIntToOH1(size, keepBits) >> dropBits
 
       val count = RegInit(0.U(countBits.W))
       val first = count === 0.U
-      val last  = count === limit || !hasData
+      val last = count === limit || !hasData
 
-      when (out.fire) {
+      when(out.fire) {
         count := count + 1.U
-        when (last) { count := 0.U }
+        when(last) {
+          count := 0.U
+        }
       }
 
       // For sub-beat transfer, extract which part matters
       val sel = in.bits match {
-        case a: TLBundleA => a.address(keepBits-1, dropBits)
-        case b: TLBundleB => b.address(keepBits-1, dropBits)
-        case c: TLBundleC => c.address(keepBits-1, dropBits)
+        case a: TLBundleA => a.address(keepBits - 1, dropBits)
+        case b: TLBundleB => b.address(keepBits - 1, dropBits)
+        case c: TLBundleC => c.address(keepBits - 1, dropBits)
         case d: TLBundleD => {
           val sel = sourceMap(d.source)
           val hold = Mux(first, sel, RegEnable(sel, first)) // a_first is not for whole xfer
@@ -123,9 +132,10 @@ class TLWidthWidget(innerBeatBytes: Int)(implicit p: Parameters) extends LazyMod
         }
       }
 
-      val index  = sel | count
+      val index = sel | count
+
       def helper(idata: UInt, width: Int): UInt = {
-        val mux = VecInit.tabulate(ratio) { i => idata((i+1)*outBytes*width-1, i*outBytes*width) }
+        val mux = VecInit.tabulate(ratio) { i => idata((i + 1) * outBytes * width - 1, i * outBytes * width) }
         mux(index)
       }
 
@@ -147,7 +157,7 @@ class TLWidthWidget(innerBeatBytes: Int)(implicit p: Parameters) extends LazyMod
       // Repeat the input if we're not last
       !last
     }
-    
+
     def splice[T <: TLDataChannel](edgeIn: TLEdge, in: DecoupledIO[T], edgeOut: TLEdge, out: DecoupledIO[T], sourceMap: UInt => UInt) = {
       if (edgeIn.manager.beatBytes == edgeOut.manager.beatBytes) {
         // nothing to do; pass it through
@@ -161,8 +171,8 @@ class TLWidthWidget(innerBeatBytes: Int)(implicit p: Parameters) extends LazyMod
         val cated = Wire(chiselTypeOf(repeated))
         cated <> repeated
         edgeIn.data(cated.bits) := Cat(
-          edgeIn.data(repeated.bits)(edgeIn.manager.beatBytes*8-1, edgeOut.manager.beatBytes*8),
-          edgeIn.data(in.bits)(edgeOut.manager.beatBytes*8-1, 0))
+          edgeIn.data(repeated.bits)(edgeIn.manager.beatBytes * 8 - 1, edgeOut.manager.beatBytes * 8),
+          edgeIn.data(in.bits)(edgeOut.manager.beatBytes * 8 - 1, 0))
         repeat := split(edgeIn, cated, edgeOut, out, sourceMap)
       } else {
         // merge input to output
@@ -181,12 +191,12 @@ class TLWidthWidget(innerBeatBytes: Int)(implicit p: Parameters) extends LazyMod
 
       def sourceMap(source_bits: UInt) = {
         val source = if (edgeIn.client.endSourceId == 1) 0.U(0.W) else source_bits
-        require (edgeOut.manager.beatBytes > edgeIn.manager.beatBytes)
+        require(edgeOut.manager.beatBytes > edgeIn.manager.beatBytes)
         val keepBits = log2Ceil(edgeOut.manager.beatBytes)
         val dropBits = log2Ceil(edgeIn.manager.beatBytes)
-        val sources  = Reg(Vec(edgeIn.client.endSourceId, UInt((keepBits-dropBits).W)))
-        val a_sel = in.a.bits.address(keepBits-1, dropBits)
-        when (in.a.fire) {
+        val sources = Reg(Vec(edgeIn.client.endSourceId, UInt((keepBits - dropBits).W)))
+        val a_sel = in.a.bits.address(keepBits - 1, dropBits)
+        when(in.a.fire) {
           if (edgeIn.client.endSourceId == 1) { // avoid extraction-index-width warning
             sources(0) := a_sel
           } else {
@@ -202,12 +212,12 @@ class TLWidthWidget(innerBeatBytes: Int)(implicit p: Parameters) extends LazyMod
         else Mux(bypass, a_sel, sources(source))
       }
 
-      splice(edgeIn,  in.a,  edgeOut, out.a, sourceMap)
-      splice(edgeOut, out.d, edgeIn,  in.d,  sourceMap)
+      splice(edgeIn, in.a, edgeOut, out.a, sourceMap)
+      splice(edgeOut, out.d, edgeIn, in.d, sourceMap)
 
       if (edgeOut.manager.anySupportAcquireB && edgeIn.client.anySupportProbe) {
-        splice(edgeOut, out.b, edgeIn,  in.b,  sourceMap)
-        splice(edgeIn,  in.c,  edgeOut, out.c, sourceMap)
+        splice(edgeOut, out.b, edgeIn, in.b, sourceMap)
+        splice(edgeIn, in.c, edgeOut, out.c, sourceMap)
         out.e.valid := in.e.valid
         out.e.bits := in.e.bits
         in.e.ready := out.e.ready
@@ -223,23 +233,23 @@ class TLWidthWidget(innerBeatBytes: Int)(implicit p: Parameters) extends LazyMod
   }
 }
 
-object TLWidthWidget
-{
-  def apply(innerBeatBytes: Int)(implicit p: Parameters): TLNode =
-  {
+object TLWidthWidget {
+  def apply(innerBeatBytes: Int)(implicit p: Parameters): TLNode = {
     val widget = LazyModule(new TLWidthWidget(innerBeatBytes))
     widget.node
   }
+
   def apply(wrapper: TLBusWrapper)(implicit p: Parameters): TLNode = apply(wrapper.beatBytes)
 }
 
 // Synthesizable unit tests
+
 import freechips.rocketchip.unittest._
 
 class TLRAMWidthWidget(first: Int, second: Int, txns: Int)(implicit p: Parameters) extends LazyModule {
   val fuzz = LazyModule(new TLFuzzer(txns))
   val model = LazyModule(new TLRAMModel("WidthWidget"))
-  val ram  = LazyModule(new TLRAM(AddressSet(0x0, 0x3ff)))
+  val ram = LazyModule(new TLRAM(AddressSet(0x0, 0x3ff)))
 
   (ram.node
     := TLDelayer(0.1)
@@ -251,13 +261,14 @@ class TLRAMWidthWidget(first: Int, second: Int, txns: Int)(implicit p: Parameter
     := fuzz.node)
 
   lazy val module = new Impl
+
   class Impl extends LazyModuleImp(this) with UnitTestModule {
     io.finished := fuzz.module.io.finished
   }
 }
 
 class TLRAMWidthWidgetTest(little: Int, big: Int, txns: Int = 5000, timeout: Int = 500000)(implicit p: Parameters) extends UnitTest(timeout) {
-  val dut = Module(LazyModule(new TLRAMWidthWidget(little,big,txns)).module)
+  val dut = Module(LazyModule(new TLRAMWidthWidget(little, big, txns)).module)
   dut.io.start := DontCare
   io.finished := dut.io.finished
 }

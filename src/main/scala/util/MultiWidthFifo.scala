@@ -26,18 +26,21 @@ class MultiWidthFifo(inW: Int, outW: Int, n: Int) extends Module {
 
     val wdata = Reg(Vec(n / nBeats, Bits(inW.W)))
     val rdata = VecInit(wdata.flatMap { indat =>
-      (0 until nBeats).map(i => indat(outW * (i + 1) - 1, outW * i)) })
+      (0 until nBeats).map(i => indat(outW * (i + 1) - 1, outW * i))
+    })
 
     val head = RegInit(0.U(log2Up(n / nBeats).W))
     val tail = RegInit(0.U(log2Up(n).W))
     val size = RegInit(0.U(log2Up(n + 1).W))
 
-    when (io.in.fire) {
+    when(io.in.fire) {
       wdata(head) := io.in.bits
       head := head + 1.U
     }
 
-    when (io.out.fire) { tail := tail + 1.U }
+    when(io.out.fire) {
+      tail := tail + 1.U
+    }
 
     size := MuxCase(size, Seq(
       (io.in.fire && io.out.fire) -> (size + (nBeats - 1).U),
@@ -55,18 +58,21 @@ class MultiWidthFifo(inW: Int, outW: Int, n: Int) extends Module {
 
     val wdata = Reg(Vec(n * nBeats, Bits(inW.W)))
     val rdata = VecInit(Seq.tabulate(n) { i =>
-      Cat(wdata.slice(i * nBeats, (i + 1) * nBeats).reverse)})
+      Cat(wdata.slice(i * nBeats, (i + 1) * nBeats).reverse)
+    })
 
     val head = RegInit(0.U(log2Up(n * nBeats).W))
     val tail = RegInit(0.U(log2Up(n).W))
     val size = RegInit(0.U(log2Up(n * nBeats + 1).W))
 
-    when (io.in.fire) {
+    when(io.in.fire) {
       wdata(head) := io.in.bits
       head := head + 1.U
     }
 
-    when (io.out.fire) { tail := tail + 1.U }
+    when(io.out.fire) {
+      tail := tail + 1.U
+    }
 
     size := MuxCase(size, Seq(
       (io.in.fire && io.out.fire) -> (size - (nBeats - 1).U),
@@ -91,8 +97,8 @@ class MultiWidthFifoTest extends UnitTest {
   val bl_finished = RegInit(false.B)
   val lb_finished = RegInit(false.B)
 
-  val bl_data = VecInit(Seq.tabulate(4){i => ((2 * i + 1) * 256 + 2 * i).U(16.W)})
-  val lb_data = VecInit(Seq.tabulate(8){i => i.U(8.W)})
+  val bl_data = VecInit(Seq.tabulate(4) { i => ((2 * i + 1) * 256 + 2 * i).U(16.W) })
+  val lb_data = VecInit(Seq.tabulate(8) { i => i.U(8.W) })
 
   val (bl_send_cnt, bl_send_done) = Counter(big2little.io.in.fire, 4)
   val (lb_send_cnt, lb_send_done) = Counter(little2big.io.in.fire, 8)
@@ -117,27 +123,27 @@ class MultiWidthFifoTest extends UnitTest {
     lb_data(Cat(lb_recv_cnt, 1.U(1.W))),
     lb_data(Cat(lb_recv_cnt, 0.U(1.W))))
 
-  when (io.start) {
+  when(io.start) {
     bl_send := true.B
     lb_send := true.B
   }
 
-  when (bl_send_done) {
+  when(bl_send_done) {
     bl_send := false.B
     bl_recv := true.B
   }
 
-  when (lb_send_done) {
+  when(lb_send_done) {
     lb_send := false.B
     lb_recv := true.B
   }
 
-  when (bl_recv_done) {
+  when(bl_recv_done) {
     bl_recv := false.B
     bl_finished := true.B
   }
 
-  when (lb_recv_done) {
+  when(lb_recv_done) {
     lb_recv := false.B
     lb_finished := true.B
   }

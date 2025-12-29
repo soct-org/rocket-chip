@@ -15,7 +15,7 @@ package object util {
 
   implicit class UIntIsOneOf(private val x: UInt) extends AnyVal {
     def isOneOf(s: Seq[UInt]): Bool = s.map(x === _).orR
-  
+
     def isOneOf(u1: UInt, u2: UInt*): Bool = isOneOf(u1 +: u2.toSeq)
   }
 
@@ -36,7 +36,7 @@ package object util {
         // Ignore MSBs of idx
         val truncIdx =
           if (idx.isWidthKnown && idx.getWidth <= log2Ceil(x.size)) idx
-          else (idx | 0.U(log2Ceil(x.size).W))(log2Ceil(x.size)-1, 0)
+          else (idx | 0.U(log2Ceil(x.size).W))(log2Ceil(x.size) - 1, 0)
         x.zipWithIndex.tail.foldLeft(x.head) { case (prev, (cur, i)) => Mux(truncIdx === i.U, cur, prev) }
       }
     }
@@ -72,15 +72,23 @@ package object util {
 
   // allow bitwise ops on Seq[Bool] just like UInt
   implicit class SeqBoolBitwiseOps(private val x: Seq[Bool]) extends AnyVal {
-    def & (y: Seq[Bool]): Seq[Bool] = (x zip y).map { case (a, b) => a && b }
-    def | (y: Seq[Bool]): Seq[Bool] = padZip(x, y).map { case (a, b) => a || b }
-    def ^ (y: Seq[Bool]): Seq[Bool] = padZip(x, y).map { case (a, b) => a ^ b }
-    def << (n: Int): Seq[Bool] = Seq.fill(n)(false.B) ++ x
-    def >> (n: Int): Seq[Bool] = x drop n
+    def &(y: Seq[Bool]): Seq[Bool] = (x zip y).map { case (a, b) => a && b }
+
+    def |(y: Seq[Bool]): Seq[Bool] = padZip(x, y).map { case (a, b) => a || b }
+
+    def ^(y: Seq[Bool]): Seq[Bool] = padZip(x, y).map { case (a, b) => a ^ b }
+
+    def <<(n: Int): Seq[Bool] = Seq.fill(n)(false.B) ++ x
+
+    def >>(n: Int): Seq[Bool] = x drop n
+
     def unary_~ : Seq[Bool] = x.map(!_)
-    def andR: Bool = if (x.isEmpty) true.B else x.reduce(_&&_)
-    def orR: Bool = if (x.isEmpty) false.B else x.reduce(_||_)
-    def xorR: Bool = if (x.isEmpty) false.B else x.reduce(_^_)
+
+    def andR: Bool = if (x.isEmpty) true.B else x.reduce(_ && _)
+
+    def orR: Bool = if (x.isEmpty) false.B else x.reduce(_ || _)
+
+    def xorR: Bool = if (x.isEmpty) false.B else x.reduce(_ ^ _)
 
     private def padZip(y: Seq[Bool], z: Seq[Bool]): Seq[(Bool, Bool)] = y.padTo(z.size, false.B) zip z.padTo(y.size, false.B)
   }
@@ -95,7 +103,7 @@ package object util {
   }
 
   /** Any Data subtype that has a Bool member named valid. */
-  type DataCanBeValid = Data { val valid: Bool }
+  type DataCanBeValid = Data {val valid: Bool}
 
   implicit class SeqMemToAugmentedSeqMem[T <: Data](private val x: SyncReadMem[T]) extends AnyVal {
     def readAndHold(addr: UInt, enable: Bool): T = x.read(addr, enable) holdUnless RegNext(enable)
@@ -117,20 +125,21 @@ package object util {
     }
 
     def named(name: Option[String]): String = {
-      x + name.map("_named_" + _ ).getOrElse("_with_no_name")
+      x + name.map("_named_" + _).getOrElse("_with_no_name")
     }
 
     def named(name: String): String = named(Some(name))
   }
 
   implicit def uintToBitPat(x: UInt): BitPat = BitPat(x)
+
   implicit def wcToUInt(c: WideCounter): UInt = c.value
 
   implicit class UIntToAugmentedUInt(private val x: UInt) extends AnyVal {
     def sextTo(n: Int): UInt = {
       require(x.getWidth <= n)
       if (x.getWidth == n) x
-      else Cat(Fill(n - x.getWidth, x(x.getWidth-1)), x)
+      else Cat(Fill(n - x.getWidth, x(x.getWidth - 1)), x)
     }
 
     def padTo(n: Int): UInt = {
@@ -140,41 +149,41 @@ package object util {
     }
 
     // shifts left by n if n >= 0, or right by -n if n < 0
-    def << (n: SInt): UInt = {
+    def <<(n: SInt): UInt = {
       val w = n.getWidth - 1
       require(w <= 30)
 
-      val shifted = x << n(w-1, 0)
+      val shifted = x << n(w - 1, 0)
       Mux(n(w), shifted >> (1 << w), shifted)
     }
 
     // shifts right by n if n >= 0, or left by -n if n < 0
-    def >> (n: SInt): UInt = {
+    def >>(n: SInt): UInt = {
       val w = n.getWidth - 1
       require(w <= 30)
 
-      val shifted = x << (1 << w) >> n(w-1, 0)
+      val shifted = x << (1 << w) >> n(w - 1, 0)
       Mux(n(w), shifted, shifted >> (1 << w))
     }
 
     // Like UInt.apply(hi, lo), but returns 0.U for zero-width extracts
     def extract(hi: Int, lo: Int): UInt = {
-      require(hi >= lo-1)
-      if (hi == lo-1) 0.U
+      require(hi >= lo - 1)
+      if (hi == lo - 1) 0.U
       else x(hi, lo)
     }
 
     // Like Some(UInt.apply(hi, lo)), but returns None for zero-width extracts
     def extractOption(hi: Int, lo: Int): Option[UInt] = {
-      require(hi >= lo-1)
-      if (hi == lo-1) None
+      require(hi >= lo - 1)
+      if (hi == lo - 1) None
       else Some(x(hi, lo))
     }
 
     // like x & ~y, but first truncate or zero-extend y to x's width
     def andNot(y: UInt): UInt = x & ~(y | (x & 0.U))
 
-    def rotateRight(n: Int): UInt = if (n == 0) x else Cat(x(n-1, 0), x >> n)
+    def rotateRight(n: Int): UInt = if (n == 0) x else Cat(x(n - 1, 0), x >> n)
 
     def rotateRight(n: UInt): UInt = {
       if (x.getWidth <= 1) {
@@ -185,7 +194,7 @@ package object util {
       }
     }
 
-    def rotateLeft(n: Int): UInt = if (n == 0) x else Cat(x(x.getWidth-1-n,0), x(x.getWidth-1,x.getWidth-n))
+    def rotateLeft(n: Int): UInt = if (n == 0) x else Cat(x(x.getWidth - 1 - n, 0), x(x.getWidth - 1, x.getWidth - n))
 
     def rotateLeft(n: UInt): UInt = {
       if (x.getWidth <= 1) {
@@ -199,13 +208,13 @@ package object util {
     // compute (this + y) % n, given (this < n) and (y < n)
     def addWrap(y: UInt, n: Int): UInt = {
       val z = x +& y
-      if (isPow2(n)) z(n.log2-1, 0) else Mux(z >= n.U, z - n.U, z)(log2Ceil(n)-1, 0)
+      if (isPow2(n)) z(n.log2 - 1, 0) else Mux(z >= n.U, z - n.U, z)(log2Ceil(n) - 1, 0)
     }
 
     // compute (this - y) % n, given (this < n) and (y < n)
     def subWrap(y: UInt, n: Int): UInt = {
       val z = x -& y
-      if (isPow2(n)) z(n.log2-1, 0) else Mux(z(z.getWidth-1), z + n.U, z)(log2Ceil(n)-1, 0)
+      if (isPow2(n)) z(n.log2 - 1, 0) else Mux(z(z.getWidth - 1), z + n.U, z)(log2Ceil(n) - 1, 0)
     }
 
     def grouped(width: Int): Seq[UInt] =
@@ -213,15 +222,16 @@ package object util {
 
     def inRange(base: UInt, bounds: UInt) = x >= base && x < bounds
 
-    def ## (y: Option[UInt]): UInt = y.map(x ## _).getOrElse(x)
+    def ##(y: Option[UInt]): UInt = y.map(x ## _).getOrElse(x)
 
     // Like >=, but prevents x-prop for ('x >= 0)
-    def >== (y: UInt): Bool = x >= y || y === 0.U
+    def >==(y: UInt): Bool = x >= y || y === 0.U
   }
 
   implicit class OptionUIntToAugmentedOptionUInt(private val x: Option[UInt]) extends AnyVal {
-    def ## (y: UInt): UInt = x.map(_ ## y).getOrElse(y)
-    def ## (y: Option[UInt]): Option[UInt] = x.map(_ ## y)
+    def ##(y: UInt): UInt = x.map(_ ## y).getOrElse(y)
+
+    def ##(y: Option[UInt]): Option[UInt] = x.map(_ ## y)
   }
 
   implicit class BooleanToAugmentedBoolean(private val x: Boolean) extends AnyVal {
@@ -240,28 +250,37 @@ package object util {
   }
 
   def OH1ToOH(x: UInt): UInt = (x << 1 | 1.U) & ~Cat(0.U(1.W), x)
+
   def OH1ToUInt(x: UInt): UInt = OHToUInt(OH1ToOH(x))
-  def UIntToOH1(x: UInt, width: Int): UInt = ~((-1).S(width.W).asUInt << x)(width-1, 0)
+
+  def UIntToOH1(x: UInt, width: Int): UInt = ~((-1).S(width.W).asUInt << x)(width - 1, 0)
+
   def UIntToOH1(x: UInt): UInt = UIntToOH1(x, (1 << x.getWidth) - 1)
 
   def trailingZeros(x: Int): Option[Int] = if (x > 0) Some(log2Ceil(x & -x)) else None
 
   // Fill 1s from low bits to high bits
   def leftOR(x: UInt): UInt = leftOR(x, x.getWidth, x.getWidth)
+
   def leftOR(x: UInt, width: Integer, cap: Integer = 999999): UInt = {
     val stop = min(width, cap)
+
     def helper(s: Int, x: UInt): UInt =
-      if (s >= stop) x else helper(s+s, x | (x << s)(width-1,0))
-    helper(1, x)(width-1, 0)
+      if (s >= stop) x else helper(s + s, x | (x << s)(width - 1, 0))
+
+    helper(1, x)(width - 1, 0)
   }
 
   // Fill 1s form high bits to low bits
   def rightOR(x: UInt): UInt = rightOR(x, x.getWidth, x.getWidth)
+
   def rightOR(x: UInt, width: Integer, cap: Integer = 999999): UInt = {
     val stop = min(width, cap)
+
     def helper(s: Int, x: UInt): UInt =
-      if (s >= stop) x else helper(s+s, x | (x >> s))
-    helper(1, x)(width-1, 0)
+      if (s >= stop) x else helper(s + s, x | (x >> s))
+
+    helper(1, x)(width - 1, 0)
   }
 
   def OptimizationBarrier[T <: Data](in: T): T = {
@@ -271,6 +290,7 @@ package object util {
         val y = Output(chiselTypeOf(in))
       })
       io.y := io.x
+
       override def desiredName = s"OptimizationBarrier_${in.typeName}"
     })
     barrier.io.x := in
@@ -278,8 +298,8 @@ package object util {
   }
 
   /** Similar to Seq.groupBy except this returns a Seq instead of a Map
-    * Useful for deterministic code generation
-    */
+   * Useful for deterministic code generation
+   */
   def groupByIntoSeq[A, K](xs: Seq[A])(f: A => K): immutable.Seq[(K, immutable.Seq[A])] = {
     val map = mutable.LinkedHashMap.empty[K, mutable.ListBuffer[A]]
     for (x <- xs) {
@@ -299,12 +319,15 @@ package object util {
   // HeterogeneousBag moved to standalond diplomacy
   @deprecated("HeterogeneousBag has been absorbed into standalone diplomacy library", "rocketchip 2.0.0")
   def HeterogeneousBag[T <: Data](elts: Seq[T]) = _root_.org.chipsalliance.diplomacy.nodes.HeterogeneousBag[T](elts)
+
   @deprecated("HeterogeneousBag has been absorbed into standalone diplomacy library", "rocketchip 2.0.0")
   val HeterogeneousBag = _root_.org.chipsalliance.diplomacy.nodes.HeterogeneousBag
 
   trait FileName {
     val fileName: String
   }
+
   case class SystemFileName(fileName: String) extends FileName
+
   case class ResourceFileName(fileName: String) extends FileName
 }

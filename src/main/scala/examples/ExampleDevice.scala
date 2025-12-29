@@ -20,21 +20,21 @@ class ExampleDeviceIOBundle(val params: ExampleDeviceParams) extends Bundle {
 }
 
 /** Base class for the ExampleDevice containing its diplomatic+DTS metadata as well as
-  * its concrete chisel implementation and register map.
-  */
+ * its concrete chisel implementation and register map.
+ */
 abstract class ExampleDevice(params: ExampleDeviceParams)(implicit p: Parameters)
   extends IORegisterRouter(
     RegisterRouterParams(
       name = "somedev",
       compat = Seq("ucbbar,random-interface"),
-      base = params.address, 
+      base = params.address,
       beatBytes = 4),
     new ExampleDeviceIOBundle(params))
-  with HasInterruptSources
-{
+    with HasInterruptSources {
   def nInterrupts = 4
 
   lazy val module = new Impl
+
   class Impl extends LazyModuleImp(this) {
 
     val state = RegInit(0.U(params.num.W))
@@ -52,7 +52,7 @@ abstract class ExampleDevice(params: ExampleDeviceParams)(implicit p: Parameters
           Some(RegFieldDesc("pending", "Pending: Example of a special (W1ToC) Register. " +
             "Writing a bit here causes it to be reset to 0. " +
             "The bits are set when the corresponding bit in 'state' is high.",
-            reset=Some(0xF), volatile=true))))
+            reset = Some(0xF), volatile = true))))
     )
   }
 }

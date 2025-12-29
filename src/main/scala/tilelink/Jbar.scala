@@ -9,16 +9,17 @@ import org.chipsalliance.diplomacy.lazymodule._
 
 import freechips.rocketchip.diplomacy.AddressSet
 
-class TLJbar(policy: TLArbiter.Policy = TLArbiter.roundRobin)(implicit p: Parameters) extends LazyModule
-{
+class TLJbar(policy: TLArbiter.Policy = TLArbiter.roundRobin)(implicit p: Parameters) extends LazyModule {
   val node: TLJunctionNode = new TLJunctionNode(
-    clientFn  = { seq =>
+    clientFn = { seq =>
       Seq.fill(node.dRatio)(seq(0).v1copy(
         minLatency = seq.map(_.minLatency).min,
         clients = (TLXbar.mapInputIds(seq) zip seq) flatMap { case (range, port) =>
-          port.clients map { client => client.v1copy(
-            sourceId = client.sourceId.shift(range.start)
-          )}
+          port.clients map { client =>
+            client.v1copy(
+              sourceId = client.sourceId.shift(range.start)
+            )
+          }
         }
       ))
     },
@@ -28,26 +29,28 @@ class TLJbar(policy: TLArbiter.Policy = TLArbiter.roundRobin)(implicit p: Parame
         minLatency = seq.map(_.minLatency).min,
         endSinkId = TLXbar.mapOutputIds(seq).map(_.end).max,
         managers = seq.flatMap { port =>
-          require (port.beatBytes == seq(0).beatBytes,
+          require(port.beatBytes == seq(0).beatBytes,
             s"Xbar data widths don't match: ${port.managers.map(_.name)} has ${port.beatBytes}B vs ${seq(0).managers.map(_.name)} has ${seq(0).beatBytes}B")
           val fifoIdMapper = fifoIdFactory()
-          port.managers map { manager => manager.v1copy(
-            fifoId = manager.fifoId.map(fifoIdMapper(_))
-          )}
+          port.managers map { manager =>
+            manager.v1copy(
+              fifoId = manager.fifoId.map(fifoIdMapper(_))
+            )
+          }
         }
       ))
     }) {
-      override def circuitIdentity = uRatio == 1 && dRatio == 1
-    }
+    override def circuitIdentity = uRatio == 1 && dRatio == 1
+  }
 
   lazy val module = new Impl
+
   class Impl extends LazyModuleImp(this) {
     node.inoutGrouped.foreach { case (in, out) => TLXbar.circuit(policy, in, out) }
   }
 }
 
-object TLJbar
-{
+object TLJbar {
   def apply(policy: TLArbiter.Policy = TLArbiter.roundRobin)(implicit p: Parameters) = {
     val jbar = LazyModule(new TLJbar(policy))
     jbar.node
@@ -55,6 +58,7 @@ object TLJbar
 }
 
 // Synthesizable unit tests
+
 import freechips.rocketchip.unittest._
 
 class TLJbarTestImp(nClients: Int, nManagers: Int, txns: Int)(implicit p: Parameters) extends LazyModule {
@@ -67,10 +71,11 @@ class TLJbarTestImp(nClients: Int, nManagers: Int, txns: Int)(implicit p: Parame
   }
 
   for (n <- 0 until nManagers) {
-    TLRAM(AddressSet(0x0+0x400*n, 0x3ff)) := TLFragmenter(4, 256) := TLDelayer(0.1) := jbar.node
+    TLRAM(AddressSet(0x0 + 0x400 * n, 0x3ff)) := TLFragmenter(4, 256) := TLDelayer(0.1) := jbar.node
   }
 
   lazy val module = new Impl
+
   class Impl extends LazyModuleImp(this) with UnitTestModule {
     io.finished := fuzzers.map(_.module.io.finished).reduce(_ && _)
   }

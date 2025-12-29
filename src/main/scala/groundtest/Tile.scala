@@ -20,24 +20,23 @@ trait GroundTestTileParams extends TileParams {
   val memStart: BigInt
   val maxRequests: Int
   val numGens: Int
-  
+
   val icache = Some(ICacheParams())
   val btb = None
   val rocc = Nil
   val core = RocketCoreParams(nPMPs = 0) //TODO remove this
-  val cached = if(dcache.isDefined) 1 else 0
+  val cached = if (dcache.isDefined) 1 else 0
   val dataScratchpadBytes = 0
 }
 
 abstract class GroundTestTile(
-  params: GroundTestTileParams,
-  crossing: ClockCrossingType,
-  lookup: LookupByHartIdImpl,
-  q: Parameters
-) extends BaseTile(params, crossing, lookup, q)
+                               params: GroundTestTileParams,
+                               crossing: ClockCrossingType,
+                               lookup: LookupByHartIdImpl,
+                               q: Parameters
+                             ) extends BaseTile(params, crossing, lookup, q)
   with SinksExternalInterrupts
-  with SourcesExternalNotifications
-{
+  with SourcesExternalNotifications {
   val cpuDevice: SimpleDevice = new SimpleDevice("groundtest", Nil)
   val intOutwardNode = None
   val slaveNode: TLInwardNode = TLIdentityNode()
@@ -46,7 +45,9 @@ abstract class GroundTestTile(
   val dcacheOpt = params.dcache.map { dc => LazyModule(p(BuildHellaCache)(this)(p)) }
 
   dcacheOpt.foreach { m =>
-    m.hartIdSinkNodeOpt.foreach { _ := hartIdNexusNode }
+    m.hartIdSinkNodeOpt.foreach {
+      _ := hartIdNexusNode
+    }
     InModuleBody {
       m.module.io.tlb_port := DontCare
     }

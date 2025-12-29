@@ -4,8 +4,7 @@ package freechips.rocketchip.amba
 
 import org.chipsalliance.diplomacy.nodes.{InwardNodeHandle, OutwardNodeHandle, SimpleNodeHandle}
 
-package object ahb
-{
+package object ahb {
   type AHBSlaveOutwardNode = OutwardNodeHandle[AHBMasterPortParameters, AHBSlavePortParameters, AHBEdgeParameters, AHBSlaveBundle]
   type AHBSlaveInwardNode = InwardNodeHandle[AHBMasterPortParameters, AHBSlavePortParameters, AHBEdgeParameters, AHBSlaveBundle]
   type AHBSlaveNode = SimpleNodeHandle[AHBMasterPortParameters, AHBSlavePortParameters, AHBEdgeParameters, AHBSlaveBundle]

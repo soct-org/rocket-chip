@@ -9,8 +9,8 @@ import freechips.rocketchip.rocket.{TracedInstruction}
 import freechips.rocketchip.trace.{TraceCoreInterface, TraceItype}
 
 /** A trait supplying a function allowing the contents of data
-  * to be supressed for a time period, i.e. be blocked.
-  */
+ * to be supressed for a time period, i.e. be blocked.
+ */
 trait Blockable[T <: Data] {
   def blockWhile(enable_blocking: Bool, data: T): T
 }
@@ -24,7 +24,9 @@ object Blockable {
     def blockWhile(enable_blocking: Bool, data: T): T = {
       val blocked: T = Wire(chiselTypeOf(data))
       blocked := data
-      when (enable_blocking) { blocked.valid := false.B }
+      when(enable_blocking) {
+        blocked.valid := false.B
+      }
       blocked
     }
   }
@@ -32,11 +34,11 @@ object Blockable {
   implicit def BlockableDecoupled[T <: Data]: Blockable[DecoupledIO[T]] = new Blockable[DecoupledIO[T]] {
     def blockWhile(enable_blocking: Bool, data: DecoupledIO[T]): DecoupledIO[T] = {
       val res = Wire(chiselTypeOf(data))
-      res.valid  := data.valid
+      res.valid := data.valid
       data.ready := res.ready
-      res.bits   := data.bits
-      when (enable_blocking) {
-        res.valid  := false.B
+      res.bits := data.bits
+      when(enable_blocking) {
+        res.valid := false.B
         data.ready := false.B
       }
       res
@@ -46,10 +48,10 @@ object Blockable {
   implicit def BlockableCredited[T <: Data]: Blockable[CreditedIO[T]] = new Blockable[CreditedIO[T]] {
     def blockWhile(enable_blocking: Bool, data: CreditedIO[T]): CreditedIO[T] = {
       val res = Wire(chiselTypeOf(data))
-      res.debit   := data.debit
+      res.debit := data.debit
       data.credit := res.credit
-      res.bits    := data.bits
-      when (enable_blocking) {
+      res.bits := data.bits
+      when(enable_blocking) {
         res.debit := false.B
         data.credit := false.B
       }
@@ -67,7 +69,7 @@ object Blockable {
     def blockWhile(enable_blocking: Bool, data: TraceCoreInterface): TraceCoreInterface = {
       val blocked: TraceCoreInterface = Wire(chiselTypeOf(data))
       blocked := data
-      when (enable_blocking) {
+      when(enable_blocking) {
         blocked.group.foreach { g =>
           g.iretire := 0.U
           g.itype := TraceItype.ITNothing

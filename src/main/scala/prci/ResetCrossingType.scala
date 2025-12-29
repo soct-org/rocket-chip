@@ -4,7 +4,8 @@ package freechips.rocketchip.prci
 import org.chipsalliance.cde.config._
 import org.chipsalliance.diplomacy.lazymodule._
 
-trait HasResetDomainCrossing extends HasDomainCrossing { this: LazyModule =>
+trait HasResetDomainCrossing extends HasDomainCrossing {
+  this: LazyModule =>
   type DomainCrossingType = ResetCrossingType
 }
 

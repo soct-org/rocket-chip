@@ -13,10 +13,15 @@ import freechips.rocketchip.util.{ClockDivider3, Pow2ClockDivider}
 */
 class ClockDivider(div: Int)(implicit p: Parameters) extends LazyModule {
   val node = ClockAdapterNode(
-    sourceFn = { case src => src.copy(give = src.give.map(x => x.copy(freqMHz = x.freqMHz / div))) },
-    sinkFn   = { case snk => snk.copy(take = snk.take.map(x => x.copy(freqMHz = x.freqMHz * div))) })
+    sourceFn = {
+      case src => src.copy(give = src.give.map(x => x.copy(freqMHz = x.freqMHz / div)))
+    },
+    sinkFn = {
+      case snk => snk.copy(take = snk.take.map(x => x.copy(freqMHz = x.freqMHz * div)))
+    })
 
   lazy val module = new Impl
+
   class Impl extends LazyModuleImp(this) {
     (node.in zip node.out).foreach { case ((in, _), (out, _)) =>
       val div_clock: Clock = div match {
@@ -29,7 +34,9 @@ class ClockDivider(div: Int)(implicit p: Parameters) extends LazyModule {
         case x => throw new IllegalArgumentException(s"rocketchip.util only supports clock division by powers of 2, or exactly 3, but got $x")
       }
       out.clock := div_clock
-      out.reset := withClock(out.clock) { RegNext(in.reset) }
+      out.reset := withClock(out.clock) {
+        RegNext(in.reset)
+      }
     }
   }
 }

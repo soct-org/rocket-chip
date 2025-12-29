@@ -16,7 +16,9 @@ class HellaFlowQueue[T <: Data](val entries: Int)(data: => T) extends Module {
   val maybe_full = RegInit(false.B)
   val enq_ptr = Counter(do_enq, entries)._1
   val (deq_ptr, deq_done) = Counter(do_deq, entries)
-  when (do_enq =/= do_deq) { maybe_full := do_enq }
+  when(do_enq =/= do_deq) {
+    maybe_full := do_enq
+  }
 
   val ptr_match = enq_ptr === deq_ptr
   val empty = ptr_match && !maybe_full
@@ -25,7 +27,9 @@ class HellaFlowQueue[T <: Data](val entries: Int)(data: => T) extends Module {
   do_flow := empty && io.deq.ready
 
   val ram = SyncReadMem(entries, data)
-  when (do_enq) { ram.write(enq_ptr, io.enq.bits) }
+  when(do_enq) {
+    ram.write(enq_ptr, io.enq.bits)
+  }
 
   // BUG! does not hold the output of the SRAM when !ready
   // ... However, HellaQueue is correct due to the pipe stage
@@ -52,7 +56,9 @@ class HellaQueue[T <: Data](val entries: Int)(data: => T) extends Module {
 
 object HellaQueue {
   def apply[T <: Data](enq: DecoupledIO[T], entries: Int) = {
-    val q = Module((new HellaQueue(entries)) { enq.bits })
+    val q = Module((new HellaQueue(entries)) {
+      enq.bits
+    })
     q.io.enq.valid := enq.valid // not using <> so that override is allowed
     q.io.enq.bits := enq.bits
     enq.ready := q.io.enq.ready

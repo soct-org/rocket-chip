@@ -6,11 +6,11 @@ import chisel3._
 import chisel3.{withClockAndReset, withReset}
 
 /** Reset: asynchronous assert,
-  *  synchronous de-assert
-  *
-  */
+ * synchronous de-assert
+ *
+ */
 
-class ResetCatchAndSync (sync: Int = 3) extends Module {
+class ResetCatchAndSync(sync: Int = 3) extends Module {
 
   override def desiredName = s"ResetCatchAndSync_d${sync}"
 
@@ -33,22 +33,26 @@ class ResetCatchAndSync (sync: Int = 3) extends Module {
 object ResetCatchAndSync {
 
   def apply(clk: Clock, rst: Bool, sync: Int = 3, name: Option[String] = None,
-    psd: Option[PSDTestMode] = None): Bool = {
+            psd: Option[PSDTestMode] = None): Bool = {
 
     withClockAndReset(clk, rst) {
-      val catcher = Module (new ResetCatchAndSync(sync))
-      if (name.isDefined) {catcher.suggestName(name.get)}
+      val catcher = Module(new ResetCatchAndSync(sync))
+      if (name.isDefined) {
+        catcher.suggestName(name.get)
+      }
       catcher.io.psd <> psd.getOrElse(WireDefault(0.U.asTypeOf(new PSDTestMode())))
       catcher.io.sync_reset
     }
   }
 
   def apply(clk: Clock, rst: Bool, sync: Int, name: String): Bool = apply(clk, rst, sync, Some(name))
+
   def apply(clk: Clock, rst: Bool, name: String): Bool = apply(clk, rst, name = Some(name))
 
   def apply(clk: Clock, rst: Bool, sync: Int, name: String, psd: PSDTestMode): Bool =
     apply(clk, rst, sync, Some(name), Some(psd))
+
   def apply(clk: Clock, rst: Bool, name: String, psd: PSDTestMode): Bool =
     apply(clk, rst, name = Some(name), psd = Some(psd))
-  
+
 }

@@ -26,20 +26,21 @@ class ScratchpadSlavePort(address: Seq[AddressSet], coreDataBytes: Int, usingAto
 
   val node = TLManagerNode(Seq(TLSlavePortParameters.v1(
     Seq(TLSlaveParameters.v1(
-      address            = address,
-      resources          = device.reg("mem"),
-      regionType         = RegionType.IDEMPOTENT,
-      executable         = true,
+      address = address,
+      resources = device.reg("mem"),
+      regionType = RegionType.IDEMPOTENT,
+      executable = true,
       supportsArithmetic = if (usingAtomics) TransferSizes(4, coreDataBytes) else TransferSizes.none,
-      supportsLogical    = if (usingAtomics) TransferSizes(4, coreDataBytes) else TransferSizes.none,
+      supportsLogical = if (usingAtomics) TransferSizes(4, coreDataBytes) else TransferSizes.none,
       supportsPutPartial = TransferSizes(1, coreDataBytes),
-      supportsPutFull    = TransferSizes(1, coreDataBytes),
-      supportsGet        = TransferSizes(1, coreDataBytes),
-      fifoId             = Some(0))), // requests handled in FIFO order
+      supportsPutFull = TransferSizes(1, coreDataBytes),
+      supportsGet = TransferSizes(1, coreDataBytes),
+      fifoId = Some(0))), // requests handled in FIFO order
     beatBytes = coreDataBytes,
     minLatency = 1)))
 
   lazy val module = new Impl
+
   class Impl extends LazyModuleImp(this) {
     val io = IO(new Bundle {
       val dmem = new HellaCacheIO
@@ -52,33 +53,47 @@ class ScratchpadSlavePort(address: Seq[AddressSet], coreDataBytes: Int, usingAto
     val s_ready :: s_wait1 :: s_wait2 :: s_replay :: s_init :: s_grant :: Nil = Enum(6)
     val state = RegInit(s_init)
     val dmem_req_valid = Wire(Bool())
-    when (state === s_wait1) { state := s_wait2 }
-    when (state === s_init && tl_in.a.valid) { state := s_ready }
-    when (io.dmem.resp.valid) { state := s_grant }
-    when (tl_in.d.fire) { state := s_ready }
-    when (io.dmem.s2_nack) { state := s_replay }
-    when (dmem_req_valid && io.dmem.req.ready) { state := s_wait1 }
+    when(state === s_wait1) {
+      state := s_wait2
+    }
+    when(state === s_init && tl_in.a.valid) {
+      state := s_ready
+    }
+    when(io.dmem.resp.valid) {
+      state := s_grant
+    }
+    when(tl_in.d.fire) {
+      state := s_ready
+    }
+    when(io.dmem.s2_nack) {
+      state := s_replay
+    }
+    when(dmem_req_valid && io.dmem.req.ready) {
+      state := s_wait1
+    }
 
     val acq = Reg(tl_in.a.bits.cloneType)
-    when (tl_in.a.fire) { acq := tl_in.a.bits }
+    when(tl_in.a.fire) {
+      acq := tl_in.a.bits
+    }
 
     def formCacheReq(a: TLBundleA) = {
       val req = Wire(new HellaCacheReq)
       req.cmd := MuxLookup(a.opcode, M_XRD)(Seq(
-        TLMessages.PutFullData    -> M_XWR,
+        TLMessages.PutFullData -> M_XWR,
         TLMessages.PutPartialData -> M_PWR,
         TLMessages.ArithmeticData -> MuxLookup(a.param, M_XRD)(Seq(
-          TLAtomics.MIN           -> M_XA_MIN,
-          TLAtomics.MAX           -> M_XA_MAX,
-          TLAtomics.MINU          -> M_XA_MINU,
-          TLAtomics.MAXU          -> M_XA_MAXU,
-          TLAtomics.ADD           -> M_XA_ADD)),
-        TLMessages.LogicalData    -> MuxLookup(a.param, M_XRD)(Seq(
-          TLAtomics.XOR           -> M_XA_XOR,
-          TLAtomics.OR            -> M_XA_OR,
-          TLAtomics.AND           -> M_XA_AND,
-          TLAtomics.SWAP          -> M_XA_SWAP)),
-        TLMessages.Get            -> M_XRD))
+          TLAtomics.MIN -> M_XA_MIN,
+          TLAtomics.MAX -> M_XA_MAX,
+          TLAtomics.MINU -> M_XA_MINU,
+          TLAtomics.MAXU -> M_XA_MAXU,
+          TLAtomics.ADD -> M_XA_ADD)),
+        TLMessages.LogicalData -> MuxLookup(a.param, M_XRD)(Seq(
+          TLAtomics.XOR -> M_XA_XOR,
+          TLAtomics.OR -> M_XA_OR,
+          TLAtomics.AND -> M_XA_AND,
+          TLAtomics.SWAP -> M_XA_SWAP)),
+        TLMessages.Get -> M_XRD))
 
       // Convert full PutPartial into PutFull to work around RMWs causing X-prop problems.
       // Also prevent cmd becoming X out of reset by checking for s_init.
@@ -86,7 +101,7 @@ class ScratchpadSlavePort(address: Seq[AddressSet], coreDataBytes: Int, usingAto
         val desired_mask = new StoreGen(a.size, a.address, 0.U, coreDataBytes).mask
         (a.mask | ~desired_mask).andR
       }
-      when (state === s_init || (a.opcode === TLMessages.PutPartialData && mask_full)) {
+      when(state === s_init || (a.opcode === TLMessages.PutPartialData && mask_full)) {
         req.cmd := M_XWR
       }
 

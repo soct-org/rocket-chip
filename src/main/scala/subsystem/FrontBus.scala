@@ -10,15 +10,14 @@ import freechips.rocketchip.tilelink.{HasTLBusParams, TLBusWrapper, TLBusWrapper
 import freechips.rocketchip.util.{Location}
 
 case class FrontBusParams(
-    beatBytes: Int,
-    blockBytes: Int,
-    dtsFrequency: Option[BigInt] = None,
-    zeroDevice: Option[BuiltInZeroDeviceParams] = None,
-    errorDevice: Option[BuiltInErrorDeviceParams] = None)
+                           beatBytes: Int,
+                           blockBytes: Int,
+                           dtsFrequency: Option[BigInt] = None,
+                           zeroDevice: Option[BuiltInZeroDeviceParams] = None,
+                           errorDevice: Option[BuiltInErrorDeviceParams] = None)
   extends HasTLBusParams
-  with HasBuiltInDeviceParams
-  with TLBusWrapperInstantiationLike
-{
+    with HasBuiltInDeviceParams
+    with TLBusWrapperInstantiationLike {
   def instantiate(context: HasTileLinkLocations, loc: Location[TLBusWrapper])(implicit p: Parameters): FrontBus = {
     val fbus = LazyModule(new FrontBus(this, loc.name))
     fbus.suggestName(loc.name)
@@ -28,7 +27,7 @@ case class FrontBusParams(
 }
 
 class FrontBus(params: FrontBusParams, name: String = "front_bus")(implicit p: Parameters)
-    extends TLBusWrapper(params, name)
+  extends TLBusWrapper(params, name)
     with HasTLXbarPhy {
   val builtInDevices: BuiltInDevices = BuiltInDevices.attach(params, outwardNode)
   val prefixNode = None

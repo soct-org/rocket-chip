@@ -24,31 +24,31 @@ trait BaseClusterParams extends HierarchicalElementParams {
 }
 
 abstract class InstantiableClusterParams[ClusterType <: Cluster]
-    extends HierarchicalElementParams
+  extends HierarchicalElementParams
     with BaseClusterParams {
   def instantiate(crossing: HierarchicalElementCrossingParamsLike, lookup: LookupByClusterIdImpl)(implicit p: Parameters): ClusterType
 }
 
 case class ClusterParams(
-  val clusterId: Int,
-  val clockSinkParams: ClockSinkParameters = ClockSinkParameters()
-) extends InstantiableClusterParams[Cluster] {
+                          val clusterId: Int,
+                          val clockSinkParams: ClockSinkParameters = ClockSinkParameters()
+                        ) extends InstantiableClusterParams[Cluster] {
   val baseName = "cluster"
   val uniqueName = s"${baseName}_$clusterId"
+
   def instantiate(crossing: HierarchicalElementCrossingParamsLike, lookup: LookupByClusterIdImpl)(implicit p: Parameters): Cluster = {
     new Cluster(this, crossing.crossingType, lookup)
   }
 }
 
 class Cluster(
-  val thisClusterParams: BaseClusterParams,
-  crossing: ClockCrossingType,
-  lookup: LookupByClusterIdImpl)(implicit p: Parameters) extends BaseHierarchicalElement(crossing)(p)
-    with Attachable
-    with HasConfigurableTLNetworkTopology
-    with InstantiatesHierarchicalElements
-    with HasHierarchicalElements
-{
+               val thisClusterParams: BaseClusterParams,
+               crossing: ClockCrossingType,
+               lookup: LookupByClusterIdImpl)(implicit p: Parameters) extends BaseHierarchicalElement(crossing)(p)
+  with Attachable
+  with HasConfigurableTLNetworkTopology
+  with InstantiatesHierarchicalElements
+  with HasHierarchicalElements {
   val busContextName = thisClusterParams.baseName
   lazy val clusterId = thisClusterParams.clusterId
   lazy val location = InCluster(clusterId)
@@ -69,16 +69,21 @@ class Cluster(
   ibus.clockNode := csbus.fixedClockNode
 
   def msipDomain = this
+
   def meipDomain = this
+
   def seipDomain = this
+
   def toPlicDomain = this
+
   def hasSupervisorTileIdList: Seq[Int] = totalTiles.filter(_._2.tileParams.core.hasSupervisorMode).keys.toSeq.sorted
+
   lazy val msipNodes = totalTileIdList.map { i => (i, IntIdentityNode()) }.to(SortedMap)
   lazy val meipNodes = totalTileIdList.map { i => (i, IntIdentityNode()) }.to(SortedMap)
   lazy val seipNodes = hasSupervisorTileIdList.map { i => (i, IntIdentityNode()) }.to(SortedMap)
   lazy val tileToPlicNodes = totalTileIdList.map { i => (i, IntIdentityNode()) }.to(SortedMap)
   lazy val debugNodes = totalTileIdList.map { i => (i, IntSyncIdentityNode()) }.to(SortedMap)
-  lazy val nmiNodes = totalTiles.filter { case (i,t) => t.tileParams.core.useNMI }
+  lazy val nmiNodes = totalTiles.filter { case (i, t) => t.tileParams.core.useNMI }
     .view.mapValues(_ => BundleBridgeIdentityNode[NMI]()).to(SortedMap)
   lazy val tileHartIdNodes = totalTileIdList.map { i => (i, BundleBridgeIdentityNode[UInt]()) }.to(SortedMap)
   lazy val tileResetVectorNodes = totalTileIdList.map { i => (i, BundleBridgeIdentityNode[UInt]()) }.to(SortedMap)
@@ -98,12 +103,11 @@ class ClusterModuleImp(outer: Cluster) extends BaseHierarchicalElementModuleImp[
 case class InCluster(id: Int) extends HierarchicalLocation(s"Cluster$id")
 
 abstract class ClusterPRCIDomain[ClusterType <: Cluster](
-  clockSinkParams: ClockSinkParameters,
-  crossingParams: HierarchicalElementCrossingParamsLike,
-  clusterParams: InstantiableClusterParams[ClusterType],
-  lookup: LookupByClusterIdImpl)
-  (implicit p: Parameters) extends HierarchicalElementPRCIDomain[ClusterType](clockSinkParams, crossingParams)
-{
+                                                          clockSinkParams: ClockSinkParameters,
+                                                          crossingParams: HierarchicalElementCrossingParamsLike,
+                                                          clusterParams: InstantiableClusterParams[ClusterType],
+                                                          lookup: LookupByClusterIdImpl)
+                                                        (implicit p: Parameters) extends HierarchicalElementPRCIDomain[ClusterType](clockSinkParams, crossingParams) {
   val element = element_reset_domain {
     LazyModule(clusterParams.instantiate(crossingParams, lookup))
   }
@@ -115,7 +119,9 @@ abstract class ClusterPRCIDomain[ClusterType <: Cluster](
 trait CanAttachCluster {
   type ClusterType <: Cluster
   type ClusterContextType <: DefaultHierarchicalElementContextType
+
   def clusterParams: InstantiableClusterParams[ClusterType]
+
   def crossingParams: HierarchicalElementCrossingParamsLike
 
   def instantiate(allClusterParams: Seq[BaseClusterParams], instantiatedClusters: SortedMap[Int, ClusterPRCIDomain[_]])(implicit p: Parameters): ClusterPRCIDomain[ClusterType] = {
@@ -142,6 +148,7 @@ trait CanAttachCluster {
       bus :=* crossingParams.master.injectNode(context) :=* domain.crossMasterPort(crossingParams.crossingType)
     }
   }
+
   def connectSlavePorts(domain: ClusterPRCIDomain[ClusterType], context: Attachable): Unit = {
     implicit val p = context.p
     val controlBus = context.locateTLBusWrapper(crossingParams.slave.where)
@@ -149,6 +156,7 @@ trait CanAttachCluster {
       domain.crossSlavePort(crossingParams.crossingType) :*= crossingParams.slave.injectNode(context) :*= TLWidthWidget(controlBus.beatBytes) :*= bus
     }
   }
+
   def connectInterrupts(domain: ClusterPRCIDomain[ClusterType], context: ClusterContextType): Unit = {
     implicit val p = context.p
 
@@ -158,19 +166,23 @@ trait CanAttachCluster {
 
     domain.element.msipNodes.foreach { case (hartid, node) => context.msipDomain {
       domain.crossIntIn(crossingParams.crossingType, node) := context.msipNodes(hartid)
-    }}
+    }
+    }
 
     domain.element.meipNodes.foreach { case (hartid, node) => context.meipDomain {
       domain.crossIntIn(crossingParams.crossingType, node) := context.meipNodes(hartid)
-    }}
+    }
+    }
 
     domain.element.seipNodes.foreach { case (hartid, node) => context.seipDomain {
       domain.crossIntIn(crossingParams.crossingType, node) := context.seipNodes(hartid)
-    }}
+    }
+    }
 
     domain.element.tileToPlicNodes.foreach { case (hartid, node) =>
       FlipRendering { implicit p =>
-        context.tileToPlicNodes(hartid) :=* domain.crossIntOut(crossingParams.crossingType, node) }
+        context.tileToPlicNodes(hartid) :=* domain.crossIntOut(crossingParams.crossingType, node)
+      }
     }
     context.ibus.fromSync :=* domain.crossIntOut(crossingParams.crossingType, domain.element.ibus.toPLIC)
 
@@ -189,8 +201,8 @@ trait CanAttachCluster {
 
   def connectOutputNotifications(domain: ClusterPRCIDomain[ClusterType], context: ClusterContextType): Unit = {
     implicit val p = context.p
-    context.tileHaltXbarNode  :=* domain.crossIntOut(NoCrossing, domain.element.tileHaltXbarNode)
-    context.tileWFIXbarNode   :=* domain.crossIntOut(NoCrossing, domain.element.tileWFIXbarNode)
+    context.tileHaltXbarNode :=* domain.crossIntOut(NoCrossing, domain.element.tileHaltXbarNode)
+    context.tileWFIXbarNode :=* domain.crossIntOut(NoCrossing, domain.element.tileWFIXbarNode)
     context.tileCeaseXbarNode :=* domain.crossIntOut(NoCrossing, domain.element.tileCeaseXbarNode)
 
   }
@@ -221,19 +233,21 @@ trait CanAttachCluster {
   }
 }
 
-case class ClusterAttachParams (
-  clusterParams: ClusterParams,
-  crossingParams: HierarchicalElementCrossingParamsLike
-) extends CanAttachCluster {
+case class ClusterAttachParams(
+                                clusterParams: ClusterParams,
+                                crossingParams: HierarchicalElementCrossingParamsLike
+                              ) extends CanAttachCluster {
   type ClusterType = Cluster
 }
 
 case class CloneClusterAttachParams(
-  sourceClusterId: Int,
-  cloneParams: CanAttachCluster
-) extends CanAttachCluster {
+                                     sourceClusterId: Int,
+                                     cloneParams: CanAttachCluster
+                                   ) extends CanAttachCluster {
   type ClusterType = cloneParams.ClusterType
+
   def clusterParams = cloneParams.clusterParams
+
   def crossingParams = cloneParams.crossingParams
 
   override def instantiate(allClusterParams: Seq[BaseClusterParams], instantiatedClusters: SortedMap[Int, ClusterPRCIDomain[_]])(implicit p: Parameters): ClusterPRCIDomain[ClusterType] = {

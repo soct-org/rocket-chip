@@ -4,15 +4,16 @@ package freechips.rocketchip.diplomacy
 
 import chisel3.util.log2Ceil
 
-object AddressDecoder
-{
+object AddressDecoder {
   type Port = Seq[AddressSet]
   type Ports = Seq[Port]
   type Partition = Ports
   type Partitions = Seq[Partition]
 
   val addressOrder = Ordering.ordered[AddressSet]
+
   import Ordering.Implicits._
+
   val portOrder = Ordering[Seq[AddressSet]]
   val partitionOrder = Ordering[Seq[Seq[AddressSet]]]
 
@@ -26,9 +27,11 @@ object AddressDecoder
     } else {
       // Verify the user did not give us an impossible problem
       nonEmptyPorts.combinations(2).foreach { case Seq(x, y) =>
-        x.foreach { a => y.foreach { b =>
-          require (!a.overlaps(b), s"Ports cannot overlap: $a $b")
-        } }
+        x.foreach { a =>
+          y.foreach { b =>
+            require(!a.overlaps(b), s"Ports cannot overlap: $a $b")
+          }
+        }
       }
 
       val maxBits = log2Ceil(1 + nonEmptyPorts.map(_.map(_.base).max).max)
@@ -39,12 +42,18 @@ object AddressDecoder
       val output = selected.reduceLeft(_ | _) | givenBits
 
       // Modify the AddressSets to allow the new wider match functions
-      val widePorts = nonEmptyPorts.map { _.map { _.widen(~output) } }
+      val widePorts = nonEmptyPorts.map {
+        _.map {
+          _.widen(~output)
+        }
+      }
       // Verify that it remains possible to disambiguate all ports
       widePorts.combinations(2).foreach { case Seq(x, y) =>
-        x.foreach { a => y.foreach { b =>
-          require (!a.overlaps(b), s"Ports cannot overlap: $a $b")
-        } }
+        x.foreach { a =>
+          y.foreach { b =>
+            require(!a.overlaps(b), s"Ports cannot overlap: $a $b")
+          }
+        }
       }
 
       output
@@ -92,7 +101,7 @@ object AddressDecoder
     val case_b_ports = partitioned_ports.map(_._2).filter(!_.isEmpty).sorted(portOrder)
     (case_a_ports, case_b_ports)
   }
-  
+
   def partitionPartitions(partitions: Partitions, bit: BigInt): Partitions = {
     val partitioned_partitions = partitions.map(p => partitionPorts(p, bit))
     val case_a_partitions = partitioned_partitions.map(_._1).filter(!_.isEmpty)
@@ -101,12 +110,15 @@ object AddressDecoder
     // Prevent combinational memory explosion; if two partitions are equal, keep only one
     // Note: AddressSets in a port are sorted, and ports in a partition are sorted.
     // This makes it easy to structurally compare two partitions for equality
-    val keep = (new_partitions.init zip new_partitions.tail) filter { case (a,b) => partitionOrder.compare(a,b) != 0 } map { _._2 }
+    val keep = (new_partitions.init zip new_partitions.tail) filter { case (a, b) => partitionOrder.compare(a, b) != 0 } map {
+      _._2
+    }
     new_partitions.head +: keep
   }
 
   // requirement: ports have sorted addresses and are sorted lexicographically
   val debug = false
+
   def recurse(partitions: Partitions, bits: Seq[BigInt]): Seq[BigInt] = {
     if (partitions.map(_.size <= 1).reduce(_ && _)) Seq() else {
       if (debug) {

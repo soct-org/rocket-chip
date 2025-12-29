@@ -15,7 +15,9 @@ trait SimpleProduct extends Product with Equals {
   override def equals(other: Any): Boolean = other match {
     case that: SimpleProduct =>
       def canEq = that.canEqual(this) && this.canEqual(that)
+
       def iter = that.productIterator zip this.productIterator
+
       canEq && iter.forall { case (a, b) => a == b }
     case _ => false
   }

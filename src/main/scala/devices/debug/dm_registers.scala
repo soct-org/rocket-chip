@@ -10,7 +10,7 @@ object DMI_RegAddrs {
         the currently selected harts, as defined in \Fhasel.  Its address will
         not change in the future, because it contains \Fversion.
   */
-  def DMI_DMSTATUS =  0x11
+  def DMI_DMSTATUS = 0x11
 
   /* This register controls the overall Debug Module
         as well as the currently selected harts, as defined in \Fhasel.
@@ -42,7 +42,7 @@ object DMI_RegAddrs {
         \Fresethaltreq is an optional internal bit of per-hart state that cannot be
         read, but can be written with \Fsetresethaltreq and \Fclrresethaltreq.
   */
-  def DMI_DMCONTROL =  0x10
+  def DMI_DMCONTROL = 0x10
 
   /* This register gives information about the hart currently
       selected by \Fhartsel.
@@ -55,12 +55,12 @@ object DMI_RegAddrs {
       explicitly access the {\tt data} and/or {\tt dscratch}
       registers.
   */
-  def DMI_HARTINFO =  0x12
+  def DMI_HARTINFO = 0x12
 
   /* This register selects which of the 32-bit portion of the hart array mask
       register (see Section~\ref{hartarraymask}) is accessible in \Rhawindow.
   */
-  def DMI_HAWINDOWSEL =  0x14
+  def DMI_HAWINDOWSEL = 0x14
 
   /* This register provides R/W access to a 32-bit portion of the
       hart array mask register (see Section~\ref{hartarraymask}).
@@ -72,7 +72,7 @@ object DMI_RegAddrs {
       bits in this register may be constant 0, depending on the current value
       of \Fhawindowsel.
   */
-  def DMI_HAWINDOW =  0x15
+  def DMI_HAWINDOW = 0x15
 
   /* Writing this register while an abstract command is executing causes
         \Fcmderr to be set to 1 (busy) if it is 0.
@@ -82,7 +82,7 @@ object DMI_RegAddrs {
             RV64 harts, or 4 to support RV128 harts.
         \end{commentary}
   */
-  def DMI_ABSTRACTCS =  0x16
+  def DMI_ABSTRACTCS = 0x16
 
   /* Writes to this register cause the corresponding abstract command to be
         executed.
@@ -101,7 +101,7 @@ object DMI_RegAddrs {
             previous one succeeding) passed.
         \end{commentary}
   */
-  def DMI_COMMAND =  0x17
+  def DMI_COMMAND = 0x17
 
   /* This register is optional. Including it allows more efficient burst
         accesses.  A debugger can detect whether it is support by setting bits
@@ -110,7 +110,7 @@ object DMI_RegAddrs {
         Writing this register while an abstract command is executing causes
         \Fcmderr to be set to 1 (busy) if it is 0.
   */
-  def DMI_ABSTRACTAUTO =  0x18
+  def DMI_ABSTRACTAUTO = 0x18
 
   /* When \Fconfstrptrvalid is set, reading this register returns bits 31:0
       of the configuration string pointer. Reading the other {\tt confstrptr}
@@ -127,19 +127,19 @@ object DMI_RegAddrs {
 
       The configuration string itself is described in the Privileged Spec.
   */
-  def DMI_CONFSTRPTR0 =  0x19
+  def DMI_CONFSTRPTR0 = 0x19
 
-  def DMI_CONFSTRPTR1 =  0x1a
+  def DMI_CONFSTRPTR1 = 0x1a
 
-  def DMI_CONFSTRPTR2 =  0x1b
+  def DMI_CONFSTRPTR2 = 0x1b
 
-  def DMI_CONFSTRPTR3 =  0x1c
+  def DMI_CONFSTRPTR3 = 0x1c
 
   /* If there is more than one DM accessible on this DMI, this register
         contains the base address of the next one in the chain, or 0 if this is
         the last one in the chain.
   */
-  def DMI_NEXTDM =  0x1d
+  def DMI_NEXTDM = 0x1d
 
   /* \Rdatazero through \Rdataeleven are basic read/write registers that may
         be read or changed by abstract commands. \Fdatacount indicates how many
@@ -157,9 +157,9 @@ object DMI_RegAddrs {
         offered by the command in question. If the command fails, no
         assumptions can be made about the contents of these registers.
   */
-  def DMI_DATA0 =  0x04
+  def DMI_DATA0 = 0x04
 
-  def DMI_DATA11 =  0x0f
+  def DMI_DATA11 = 0x0f
 
   /* \Rprogbufzero through \Rprogbuffifteen provide read/write access to the
         optional program buffer. \Fprogbufsize indicates how many of them are
@@ -170,9 +170,9 @@ object DMI_RegAddrs {
 
         Attempts to write them while \Fbusy is set does not change their value.
   */
-  def DMI_PROGBUF0 =  0x20
+  def DMI_PROGBUF0 = 0x20
 
-  def DMI_PROGBUF15 =  0x2f
+  def DMI_PROGBUF15 = 0x2f
 
   /* This register serves as a 32-bit serial port to/from the authentication
         module.
@@ -181,12 +181,12 @@ object DMI_RegAddrs {
         authentication module by reading or writing this register. There is no
         separate mechanism to signal overflow/underflow.
   */
-  def DMI_AUTHDATA =  0x30
+  def DMI_AUTHDATA = 0x30
 
   /* This register contains DM control and status bits that didn't easily
         fit in \Rdmcontrol and \Rdmstatus. All are optional.
   */
-  def DMI_DMCS2 =  0x32
+  def DMI_DMCS2 = 0x32
 
   /* Each bit in this read-only register indicates whether one specific hart
         is halted or not. Unavailable/nonexistent harts are not considered to
@@ -195,7 +195,7 @@ object DMI_RegAddrs {
         The LSB reflects the halt status of hart \{hartsel[19:5],5'h0\}, and the
         MSB reflects halt status of hart \{hartsel[19:5],5'h1f\}.
   */
-  def DMI_HALTSUM0 =  0x40
+  def DMI_HALTSUM0 = 0x40
 
   /* Each bit in this read-only register indicates whether any of a group of
         harts is halted or not. Unavailable/nonexistent harts are not considered to
@@ -209,7 +209,7 @@ object DMI_RegAddrs {
         The MSB reflects the halt status of harts \{hartsel[19:10],10'h3e0\}
         through \{hartsel[19:10],10'h3ff\}.
   */
-  def DMI_HALTSUM1 =  0x13
+  def DMI_HALTSUM1 = 0x13
 
   /* Each bit in this read-only register indicates whether any of a group of
         harts is halted or not. Unavailable/nonexistent harts are not considered to
@@ -223,7 +223,7 @@ object DMI_RegAddrs {
         The MSB reflects the halt status of harts \{hartsel[19:15],15'h7c00\}
         through \{hartsel[19:15],15'h7fff\}.
   */
-  def DMI_HALTSUM2 =  0x34
+  def DMI_HALTSUM2 = 0x34
 
   /* Each bit in this read-only register indicates whether any of a group of
         harts is halted or not. Unavailable/nonexistent harts are not considered to
@@ -235,9 +235,9 @@ object DMI_RegAddrs {
         The LSB reflects the halt status of harts 20'h0 through 20'h7fff.
         The MSB reflects the halt status of harts 20'hf8000 through 20'hfffff.
   */
-  def DMI_HALTSUM3 =  0x35
+  def DMI_HALTSUM3 = 0x35
 
-  def DMI_SBCS =  0x38
+  def DMI_SBCS = 0x38
 
   /* If \Fsbasize is 0, then this register is not present.
 
@@ -253,28 +253,28 @@ object DMI_RegAddrs {
             \item Clear \Fsbbusy.
         \end{steps}
   */
-  def DMI_SBADDRESS0 =  0x39
+  def DMI_SBADDRESS0 = 0x39
 
   /* If \Fsbasize is less than 33, then this register is not present.
 
         When the system bus master is busy, writes to this register will set
         \Fsbbusyerror and don't do anything else.
   */
-  def DMI_SBADDRESS1 =  0x3a
+  def DMI_SBADDRESS1 = 0x3a
 
   /* If \Fsbasize is less than 65, then this register is not present.
 
         When the system bus master is busy, writes to this register will set
         \Fsbbusyerror and don't do anything else.
   */
-  def DMI_SBADDRESS2 =  0x3b
+  def DMI_SBADDRESS2 = 0x3b
 
   /* If \Fsbasize is less than 97, then this register is not present.
 
         When the system bus master is busy, writes to this register will set
         \Fsbbusyerror and don't do anything else.
   */
-  def DMI_SBADDRESS3 =  0x37
+  def DMI_SBADDRESS3 = 0x37
 
   /* If all of the {\tt sbaccess} bits in \Rsbcs are 0, then this register
         is not present.
@@ -311,7 +311,7 @@ object DMI_RegAddrs {
         debugger should access \Rsbdatazero after accessing the other {\tt
         sbdata} registers.
   */
-  def DMI_SBDATA0 =  0x3c
+  def DMI_SBDATA0 = 0x3c
 
   /* If \Fsbaccesssixtyfour and \Fsbaccessonetwentyeight are 0, then this
         register is not present.
@@ -319,21 +319,21 @@ object DMI_RegAddrs {
         If the bus master is busy then accesses set \Fsbbusyerror, and don't do
         anything else.
   */
-  def DMI_SBDATA1 =  0x3d
+  def DMI_SBDATA1 = 0x3d
 
   /* This register only exists if \Fsbaccessonetwentyeight is 1.
 
         If the bus master is busy then accesses set \Fsbbusyerror, and don't do
         anything else.
   */
-  def DMI_SBDATA2 =  0x3e
+  def DMI_SBDATA2 = 0x3e
 
   /* This register only exists if \Fsbaccessonetwentyeight is 1.
 
         If the bus master is busy then accesses set \Fsbbusyerror, and don't do
         anything else.
   */
-  def DMI_SBDATA3 =  0x3f
+  def DMI_SBDATA3 = 0x3f
 
 }
 

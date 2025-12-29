@@ -72,9 +72,9 @@ case object SubsystemResetSchemeKey extends Field[SubsystemResetScheme](ResetSyn
 object DetermineTopLevelResetType {
   def apply()(implicit p: Parameters): Reset = {
     p(SubsystemResetSchemeKey) match {
-      case ResetSynchronousFull  => Bool()
+      case ResetSynchronousFull => Bool()
       case ResetAsynchronousFull => AsyncReset()
-      case _                     => Reset() // Default to abstract Reset
+      case _ => Reset() // Default to abstract Reset
     }
   }
 }

@@ -16,17 +16,16 @@ import freechips.rocketchip.tilelink.{
 import freechips.rocketchip.util.Location
 
 case class SystemBusParams(
-    beatBytes: Int,
-    blockBytes: Int,
-    policy: TLArbiter.Policy = TLArbiter.roundRobin,
-    dtsFrequency: Option[BigInt] = None,
-    zeroDevice: Option[BuiltInZeroDeviceParams] = None,
-    errorDevice: Option[BuiltInErrorDeviceParams] = None,
-    replication: Option[ReplicatedRegion] = None)
+                            beatBytes: Int,
+                            blockBytes: Int,
+                            policy: TLArbiter.Policy = TLArbiter.roundRobin,
+                            dtsFrequency: Option[BigInt] = None,
+                            zeroDevice: Option[BuiltInZeroDeviceParams] = None,
+                            errorDevice: Option[BuiltInErrorDeviceParams] = None,
+                            replication: Option[ReplicatedRegion] = None)
   extends HasTLBusParams
-  with HasBuiltInDeviceParams
-  with TLBusWrapperInstantiationLike
-{
+    with HasBuiltInDeviceParams
+    with TLBusWrapperInstantiationLike {
   def instantiate(context: HasTileLinkLocations, loc: Location[TLBusWrapper])(implicit p: Parameters): SystemBus = {
     val sbus = LazyModule(new SystemBus(this, loc.name))
     sbus.suggestName(loc.name)
@@ -36,8 +35,7 @@ case class SystemBusParams(
 }
 
 class SystemBus(params: SystemBusParams, name: String = "system_bus")(implicit p: Parameters)
-    extends TLBusWrapper(params, name)
-{
+  extends TLBusWrapper(params, name) {
   private val replicator = params.replication.map(r => LazyModule(new RegionReplicator(r)))
   val prefixNode = replicator.map { r =>
     r.prefix := addressPrefixNexusNode
@@ -47,6 +45,7 @@ class SystemBus(params: SystemBusParams, name: String = "system_bus")(implicit p
   private val system_bus_xbar = LazyModule(new TLXbar(policy = params.policy, nameSuffix = Some(name)))
   val inwardNode: TLInwardNode = system_bus_xbar.node :=* TLFIFOFixer(TLFIFOFixer.allVolatile) :=* replicator.map(_.node).getOrElse(TLTempNode())
   val outwardNode: TLOutwardNode = system_bus_xbar.node
+
   def busView: TLEdge = system_bus_xbar.node.edges.in.head
 
   val builtInDevices: BuiltInDevices = BuiltInDevices.attach(params, outwardNode)

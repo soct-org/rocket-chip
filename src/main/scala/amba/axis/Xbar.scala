@@ -10,22 +10,26 @@ import org.chipsalliance.diplomacy.lazymodule.{LazyModule, LazyModuleImp}
 
 import freechips.rocketchip.tilelink.{TLXbar, TLArbiter}
 
-class AXISXbar(beatBytes: Int, policy: TLArbiter.Policy = TLArbiter.roundRobin)(implicit p: Parameters) extends LazyModule
-{
+class AXISXbar(beatBytes: Int, policy: TLArbiter.Policy = TLArbiter.roundRobin)(implicit p: Parameters) extends LazyModule {
   val node = AXISNexusNode(
-    masterFn  = { seq =>
+    masterFn = { seq =>
       seq.foreach { port => require(port.userFields == seq(0).userFields) }
       seq(0).v1copy(
         beatBytes = Some(beatBytes),
         masters = (AXISXbar.mapInputIds(seq) zip seq) flatMap { case (range, port) =>
-          port.masters map { master => master.v1copy(sourceId = master.sourceId.shift(range.start))}})},
+          port.masters map { master => master.v1copy(sourceId = master.sourceId.shift(range.start)) }
+        })
+    },
     slaveFn = { seq =>
       seq(0).v1copy(
         beatBytes = Some(beatBytes),
         slaves = (AXISXbar.mapOutputIds(seq) zip seq) flatMap { case (range, port) =>
-          port.slaves.map { slave => slave.v1copy(destinationId = slave.destinationId + range.start)}})})
+          port.slaves.map { slave => slave.v1copy(destinationId = slave.destinationId + range.start) }
+        })
+    })
 
   lazy val module = new Impl
+
   class Impl extends LazyModuleImp(this) {
     val (io_in, edgesIn) = node.in.unzip
     val (io_out, edgesOut) = node.out.unzip
@@ -38,20 +42,24 @@ class AXISXbar(beatBytes: Int, policy: TLArbiter.Policy = TLArbiter.roundRobin)(
     val wide_bundle = AXISBundleParameters.union(io_in.map(_.params) ++ io_out.map(_.params))
 
     // Handle size = 1 gracefully (Chisel3 empty range is broken)
-    def trim(id: UInt, size: Int) = if (size <= 1) 0.U else id(log2Ceil(size)-1, 0)
+    def trim(id: UInt, size: Int) = if (size <= 1) 0.U else id(log2Ceil(size) - 1, 0)
 
     // Transform input bundle sources (dest uses global namespace on both sides)
     val in = Wire(Vec(io_in.size, AXISBundle(wide_bundle)))
     for (i <- 0 until in.size) {
       in(i) :<>= io_in(i)
-      in(i).bits.lift(AXISId) foreach { _ := io_in(i).bits.id | inputIdRanges(i).start.U }
+      in(i).bits.lift(AXISId) foreach {
+        _ := io_in(i).bits.id | inputIdRanges(i).start.U
+      }
     }
 
     // Transform output bundle sinks (id use global namespace on both sides)
     val out = Wire(Vec(io_out.size, AXISBundle(wide_bundle)))
     for (o <- 0 until out.size) {
       io_out(o) :<>= out(o)
-      io_out(o).bits.lift(AXISDest) foreach { _ := trim(out(o).bits.dest, outputIdRanges(o).size) }
+      io_out(o).bits.lift(AXISDest) foreach {
+        _ := trim(out(o).bits.dest, outputIdRanges(o).size)
+      }
     }
 
     // Fanout the input sources to the output sinks
@@ -63,15 +71,14 @@ class AXISXbar(beatBytes: Int, policy: TLArbiter.Policy = TLArbiter.roundRobin)(
   }
 }
 
-object AXISXbar
-{
-  def apply(beatBytes: Int, policy: TLArbiter.Policy = TLArbiter.roundRobin)(implicit p: Parameters): AXISNode =
-  {
+object AXISXbar {
+  def apply(beatBytes: Int, policy: TLArbiter.Policy = TLArbiter.roundRobin)(implicit p: Parameters): AXISNode = {
     val xbar = LazyModule(new AXISXbar(beatBytes, policy))
     xbar.node
   }
 
-  def mapInputIds (ports: Seq[AXISMasterPortParameters]) = TLXbar.assignRanges(ports.map(_.endSourceId))
+  def mapInputIds(ports: Seq[AXISMasterPortParameters]) = TLXbar.assignRanges(ports.map(_.endSourceId))
+
   def mapOutputIds(ports: Seq[AXISSlavePortParameters]) = TLXbar.assignRanges(ports.map(_.endDestinationId))
 
   def arbitrate(policy: TLArbiter.Policy)(sink: AXISBundle, sources: Seq[AXISBundle]): Unit = {
@@ -82,22 +89,26 @@ object AXISXbar
     } else {
       // The number of beats which remain to be sent
       val idle = RegInit(true.B)
-      when (sink.valid) { idle := sink.bits.last && sink.ready }
+      when(sink.valid) {
+        idle := sink.bits.last && sink.ready
+      }
 
       // Who wants access to the sink?
       val valids = sources.map(_.valid)
       // Arbitrate amongst the requests
       val readys = VecInit(policy(valids.size, Cat(valids.reverse), idle).asBools)
       // Which request wins arbitration?
-      val winner = VecInit((readys zip valids) map { case (r,v) => r&&v })
+      val winner = VecInit((readys zip valids) map { case (r, v) => r && v })
 
       // Confirm the policy works properly
-      require (readys.size == valids.size)
+      require(readys.size == valids.size)
       // Never two winners
-      val prefixOR = winner.scanLeft(false.B)(_||_).init
-      assert((prefixOR zip winner) map { case (p,w) => !p || !w } reduce {_ && _})
+      val prefixOR = winner.scanLeft(false.B)(_ || _).init
+      assert((prefixOR zip winner) map { case (p, w) => !p || !w } reduce {
+        _ && _
+      })
       // If there was any request, there is a winner
-      assert (!valids.reduce(_||_) || winner.reduce(_||_))
+      assert(!valids.reduce(_ || _) || winner.reduce(_ || _))
 
       // The one-hot source granted access in the previous cycle
       val state = RegInit(VecInit.tabulate(sources.size)(_ => false.B))
@@ -106,7 +117,7 @@ object AXISXbar
 
       val allowed = Mux(idle, readys, state)
       (sources zip allowed) foreach { case (s, r) => s.ready := sink.ready && r }
-      sink.valid := Mux(idle, valids.reduce(_||_), Mux1H(state, valids))
+      sink.valid := Mux(idle, valids.reduce(_ || _), Mux1H(state, valids))
       Connectable.waiveUnmatched(sink.bits, Mux1H(muxState, sources.map(_.bits))) match {
         case (lhs, rhs) => lhs.squeezeAll :<= rhs.squeezeAll
       }

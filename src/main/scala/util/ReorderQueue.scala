@@ -26,7 +26,7 @@ class ReorderDequeueIO[T <: Data](dType: T, tagWidth: Int) extends Bundle {
 }
 
 class ReorderQueue[T <: Data](dType: T, tagWidth: Int, size: Option[Int] = None)
-    extends Module {
+  extends Module {
   val io = IO(new Bundle {
     val enq = Flipped(new ReorderEnqueueIO(dType, tagWidth))
     val deq = new ReorderDequeueIO(dType, tagWidth)
@@ -49,13 +49,13 @@ class ReorderQueue[T <: Data](dType: T, tagWidth: Int, size: Option[Int] = None)
     io.deq.data := Mux1H(roq_deq_onehot, roq_data)
     io.deq.matches := roq_matches.reduce(_ || _)
 
-    when (io.enq.valid && io.enq.ready) {
+    when(io.enq.valid && io.enq.ready) {
       roq_data(roq_enq_addr) := io.enq.bits.data
       roq_tags(roq_enq_addr) := io.enq.bits.tag
       roq_free(roq_enq_addr) := false.B
     }
 
-    when (io.deq.valid) {
+    when(io.deq.valid) {
       roq_free(OHToUInt(roq_deq_onehot)) := true.B
     }
 
@@ -68,12 +68,12 @@ class ReorderQueue[T <: Data](dType: T, tagWidth: Int, size: Option[Int] = None)
     io.deq.data := roq_data(io.deq.tag)
     io.deq.matches := !roq_free(io.deq.tag)
 
-    when (io.enq.valid && io.enq.ready) {
+    when(io.enq.valid && io.enq.ready) {
       roq_data(io.enq.bits.tag) := io.enq.bits.data
       roq_free(io.enq.bits.tag) := false.B
     }
 
-    when (io.deq.valid) {
+    when(io.deq.valid) {
       roq_free(io.deq.tag) := true.B
     }
   }

@@ -27,12 +27,12 @@ import scala.reflect.ClassTag
 
 case object MaxXLen extends Field[Int]
 
-class BaseSubsystemConfig extends Config ((site, here, up) => {
+class BaseSubsystemConfig extends Config((site, here, up) => {
   // Tile parameters
   case MaxXLen => (site(PossibleTileLocations).flatMap(loc => site(TilesLocated(loc)))
     .map(_.tileParams.core.xLen) :+ 32).max
   case MaxHartIdBits => log2Up((site(PossibleTileLocations).flatMap(loc => site(TilesLocated(loc)))
-      .map(_.tileParams.tileId) :+ 0).max+1)
+    .map(_.tileParams.tileId) :+ 0).max + 1)
   // Interconnect parameters
   case SystemBusKey => SystemBusParams(
     beatBytes = 8,
@@ -42,7 +42,7 @@ class BaseSubsystemConfig extends Config ((site, here, up) => {
     blockBytes = site(CacheBlockBytes),
     dtsFrequency = Some(100000000), // Default to 100 MHz cbus clock
     errorDevice = Some(BuiltInErrorDeviceParams(
-      errorParams = DevNullParams(List(AddressSet(0x3000, 0xfff)), maxAtomic=8, maxTransfer=4096))))
+      errorParams = DevNullParams(List(AddressSet(0x3000, 0xfff)), maxAtomic = 8, maxTransfer = 4096))))
   case PeripheryBusKey => PeripheryBusParams(
     beatBytes = 8,
     blockBytes = site(CacheBlockBytes),
@@ -105,10 +105,10 @@ class WithCoherentBusTopology extends Config((site, here, up) => {
 })
 
 class WithCluster(
-  clusterId: Int,
-  location: HierarchicalLocation = InSubsystem,
-  crossing: RocketCrossingParams = RocketCrossingParams() // TODO make this not rocket
-) extends Config((site, here, up) => {
+                   clusterId: Int,
+                   location: HierarchicalLocation = InSubsystem,
+                   crossing: RocketCrossingParams = RocketCrossingParams() // TODO make this not rocket
+                 ) extends Config((site, here, up) => {
   case ClustersLocated(`location`) => up(ClustersLocated(location)) :+ ClusterAttachParams(
     ClusterParams(clusterId = clusterId),
     crossing)
@@ -124,7 +124,7 @@ class WithCluster(
 })
 
 class WithClusterBanks(clusterId: Int, nBanks: Int = 1) extends Config((site, here, up) => {
-  case ClusterBankedCoherenceKey(`clusterId`) => up(ClusterBankedCoherenceKey(clusterId)).copy(nBanks=nBanks)
+  case ClusterBankedCoherenceKey(`clusterId`) => up(ClusterBankedCoherenceKey(clusterId)).copy(nBanks = nBanks)
 })
 
 class WithNBanks(n: Int) extends Config((site, here, up) => {
@@ -145,17 +145,29 @@ class WithBufferlessBroadcastHub extends Config((site, here, up) => {
 
 class TileAttachConfig[T <: CanAttachTile](f: T => T, locationOpt: Option[HierarchicalLocation], tileIdOpt: Seq[Int])(implicit tag: ClassTag[T])
   extends Config((site, here, up) => {
-    val partialFn: PartialFunction[CanAttachTile, CanAttachTile] = { case tp: T => if (tileIdOpt.contains(tp.tileParams.tileId) || tileIdOpt.isEmpty) f(tp) else tp }
+    val partialFn: PartialFunction[CanAttachTile, CanAttachTile] = {
+      case tp: T => if (tileIdOpt.contains(tp.tileParams.tileId) || tileIdOpt.isEmpty) f(tp) else tp
+    }
     val alterFn: CanAttachTile => CanAttachTile = x => partialFn.applyOrElse(x, identity[CanAttachTile])
     locationOpt match {
-      case Some(loc) => { case TilesLocated(`loc`) => up(TilesLocated(loc)) map { alterFn(_) } }
-      case None      => { case TilesLocated(loc)   => up(TilesLocated(loc)) map { alterFn(_) } }
+      case Some(loc) => {
+        case TilesLocated(`loc`) => up(TilesLocated(loc)) map {
+          alterFn(_)
+        }
+      }
+      case None => {
+        case TilesLocated(loc) => up(TilesLocated(loc)) map {
+          alterFn(_)
+        }
+      }
     }
   }) {
   // The default constructor applies the modification to all locations
   def this(f: T => T)(implicit tag: ClassTag[T]) = this(f, None, Nil)
+
   // The atLocation method applies the modification to only the provided location
   def atLocation(loc: HierarchicalLocation) = new TileAttachConfig(f, Some(loc), tileIdOpt)
+
   // The atTileIds method applies the modification only to specified tileIds
   def atTileIds(ids: Int*) = new TileAttachConfig(f, locationOpt, tileIdOpt ++ ids)
 }
@@ -163,16 +175,16 @@ class TileAttachConfig[T <: CanAttachTile](f: T => T, locationOpt: Option[Hierar
 class WithRoccExample extends Config((site, here, up) => {
   case BuildRoCC => List(
     (p: Parameters) => {
-        val accumulator = LazyModule(new AccumulatorExample(OpcodeSet.custom0, n = 4)(p))
-        accumulator
+      val accumulator = LazyModule(new AccumulatorExample(OpcodeSet.custom0, n = 4)(p))
+      accumulator
     },
     (p: Parameters) => {
-        val translator = LazyModule(new TranslatorExample(OpcodeSet.custom1)(p))
-        translator
+      val translator = LazyModule(new TranslatorExample(OpcodeSet.custom1)(p))
+      translator
     },
     (p: Parameters) => {
-        val counter = LazyModule(new CharacterCountExample(OpcodeSet.custom2)(p))
-        counter
+      val counter = LazyModule(new CharacterCountExample(OpcodeSet.custom2)(p))
+      counter
     },
     (p: Parameters) => {
       val blackbox = LazyModule(new BlackBoxExample(OpcodeSet.custom3, "RoccBlackBox")(p))
@@ -207,7 +219,7 @@ class WithIncoherentTiles extends Config((site, here, up) => {
 })
 
 class WithBootROMFile(bootROMFile: String) extends Config((site, here, up) => {
-  case BootROMLocated(x) => up(BootROMLocated(x)).map(_.copy(contentFileName=SystemFileName(bootROMFile)))
+  case BootROMLocated(x) => up(BootROMLocated(x)).map(_.copy(contentFileName = SystemFileName(bootROMFile)))
 })
 
 class WithClockGateModel(file: String = "/vsrc/EICG_wrapper.v") extends Config((site, here, up) => {
@@ -215,28 +227,28 @@ class WithClockGateModel(file: String = "/vsrc/EICG_wrapper.v") extends Config((
 })
 
 class WithEdgeDataBits(dataBits: Int) extends Config((site, here, up) => {
-  case MemoryBusKey => up(MemoryBusKey).copy(beatBytes = dataBits/8)
-  case ExtIn => up(ExtIn).map(_.copy(beatBytes = dataBits/8))
+  case MemoryBusKey => up(MemoryBusKey).copy(beatBytes = dataBits / 8)
+  case ExtIn => up(ExtIn).map(_.copy(beatBytes = dataBits / 8))
 })
 
-class WithJtagDTM extends Config ((site, here, up) => {
+class WithJtagDTM extends Config((site, here, up) => {
   case ExportDebug => up(ExportDebug).copy(protocols = Set(JTAG))
 })
 
-class WithDebugAPB extends Config ((site, here, up) => {
+class WithDebugAPB extends Config((site, here, up) => {
   case ExportDebug => up(ExportDebug).copy(protocols = Set(APB))
 })
 
 
-class WithDebugSBA extends Config ((site, here, up) => {
+class WithDebugSBA extends Config((site, here, up) => {
   case DebugModuleKey => up(DebugModuleKey).map(_.copy(hasBusMaster = true))
 })
 
-class WithNBitPeripheryBus(nBits: Int) extends Config ((site, here, up) => {
-  case PeripheryBusKey => up(PeripheryBusKey).copy(beatBytes = nBits/8)
+class WithNBitPeripheryBus(nBits: Int) extends Config((site, here, up) => {
+  case PeripheryBusKey => up(PeripheryBusKey).copy(beatBytes = nBits / 8)
 })
 
-class WithoutTLMonitors extends Config ((site, here, up) => {
+class WithoutTLMonitors extends Config((site, here, up) => {
   case MonitorsEnabled => false
 })
 
@@ -267,19 +279,19 @@ class WithTimebase(hertz: BigInt) extends Config((site, here, up) => {
 
 class WithDefaultMemPort extends Config((site, here, up) => {
   case ExtMem => Some(MemoryPortParams(MasterPortParams(
-                      base = x"8000_0000",
-                      size = x"1000_0000",
-                      beatBytes = site(MemoryBusKey).beatBytes,
-                      idBits = 4), 1))
+    base = x"8000_0000",
+    size = x"1000_0000",
+    beatBytes = site(MemoryBusKey).beatBytes,
+    idBits = 4), 1))
 })
 
-class WithCustomMemPort (base_addr: BigInt, base_size: BigInt, data_width: Int, id_bits: Int, maxXferBytes: Int) extends Config((site, here, up) => {
+class WithCustomMemPort(base_addr: BigInt, base_size: BigInt, data_width: Int, id_bits: Int, maxXferBytes: Int) extends Config((site, here, up) => {
   case ExtMem => Some(MemoryPortParams(MasterPortParams(
-                      base = base_addr,
-                      size = base_size,
-                      beatBytes = data_width/8,
-                      idBits = id_bits, 
-                      maxXferBytes = maxXferBytes), 1))
+    base = base_addr,
+    size = base_size,
+    beatBytes = data_width / 8,
+    idBits = id_bits,
+    maxXferBytes = maxXferBytes), 1))
 })
 
 class WithNoMemPort extends Config((site, here, up) => {
@@ -288,19 +300,19 @@ class WithNoMemPort extends Config((site, here, up) => {
 
 class WithDefaultMMIOPort extends Config((site, here, up) => {
   case ExtBus => Some(MasterPortParams(
-                      base = x"6000_0000",
-                      size = x"2000_0000",
-                      beatBytes = site(MemoryBusKey).beatBytes,
-                      idBits = 4))
+    base = x"6000_0000",
+    size = x"2000_0000",
+    beatBytes = site(MemoryBusKey).beatBytes,
+    idBits = 4))
 })
 
-class WithCustomMMIOPort (base_addr: BigInt, base_size: BigInt, data_width: Int, id_bits: Int, maxXferBytes: Int) extends Config((site, here, up) => {
+class WithCustomMMIOPort(base_addr: BigInt, base_size: BigInt, data_width: Int, id_bits: Int, maxXferBytes: Int) extends Config((site, here, up) => {
   case ExtBus => Some(MasterPortParams(
-                      base = base_addr,
-                      size = base_size,
-                      beatBytes = data_width/8,
-                      idBits = id_bits, 
-                      maxXferBytes = maxXferBytes))
+    base = base_addr,
+    size = base_size,
+    beatBytes = data_width / 8,
+    idBits = id_bits,
+    maxXferBytes = maxXferBytes))
 })
 
 class WithNoMMIOPort extends Config((site, here, up) => {
@@ -308,11 +320,11 @@ class WithNoMMIOPort extends Config((site, here, up) => {
 })
 
 class WithDefaultSlavePort extends Config((site, here, up) => {
-  case ExtIn  => Some(SlavePortParams(beatBytes = 8, idBits = 8, sourceBits = 4))
+  case ExtIn => Some(SlavePortParams(beatBytes = 8, idBits = 8, sourceBits = 4))
 })
 
-class WithCustomSlavePort (data_width: Int, id_bits: Int) extends Config((site, here, up) => {
-  case ExtIn  => Some(SlavePortParams(beatBytes = data_width/8, idBits = id_bits, sourceBits = 4))
+class WithCustomSlavePort(data_width: Int, id_bits: Int) extends Config((site, here, up) => {
+  case ExtIn => Some(SlavePortParams(beatBytes = data_width / 8, idBits = id_bits, sourceBits = 4))
 })
 
 class WithNoSlavePort extends Config((site, here, up) => {
@@ -320,44 +332,51 @@ class WithNoSlavePort extends Config((site, here, up) => {
 })
 
 /**
-  * Mixins to specify crossing types between the 5 traditional TL buses
-  *
-  * Note: these presuppose the legacy connections between buses and set
-  * parameters in SubsystemCrossingParams; they may not be resuable in custom
-  * topologies (but you can specify the desired crossings in your topology).
-  *
-  * @param xType The clock crossing type
-  */
+ * Mixins to specify crossing types between the 5 traditional TL buses
+ *
+ * Note: these presuppose the legacy connections between buses and set
+ * parameters in SubsystemCrossingParams; they may not be resuable in custom
+ * topologies (but you can specify the desired crossings in your topology).
+ *
+ * @param xType The clock crossing type
+ */
 
 class WithSbusToMbusCrossingType(xType: ClockCrossingType) extends Config((site, here, up) => {
   case SbusToMbusXTypeKey => xType
 })
+
 class WithSbusToCbusCrossingType(xType: ClockCrossingType) extends Config((site, here, up) => {
   case SbusToCbusXTypeKey => xType
 })
+
 class WithCbusToPbusCrossingType(xType: ClockCrossingType) extends Config((site, here, up) => {
   case CbusToPbusXTypeKey => xType
 })
+
 class WithFbusToSbusCrossingType(xType: ClockCrossingType) extends Config((site, here, up) => {
   case FbusToSbusXTypeKey => xType
 })
 
 /**
-  * Mixins to set the dtsFrequency field of BusParams -- these will percolate its way
-  * up the diplomatic graph to the clock sources.
-  */
+ * Mixins to set the dtsFrequency field of BusParams -- these will percolate its way
+ * up the diplomatic graph to the clock sources.
+ */
 class WithPeripheryBusFrequency(freqMHz: Double) extends Config((site, here, up) => {
   case PeripheryBusKey => up(PeripheryBusKey).copy(dtsFrequency = Some(BigInt((freqMHz * 1e6).round)))
 })
+
 class WithMemoryBusFrequency(freqMHz: Double) extends Config((site, here, up) => {
   case MemoryBusKey => up(MemoryBusKey).copy(dtsFrequency = Some(BigInt((freqMHz * 1e6).round)))
 })
+
 class WithSystemBusFrequency(freqMHz: Double) extends Config((site, here, up) => {
   case SystemBusKey => up(SystemBusKey).copy(dtsFrequency = Some(BigInt((freqMHz * 1e6).round)))
 })
+
 class WithFrontBusFrequency(freqMHz: Double) extends Config((site, here, up) => {
   case FrontBusKey => up(FrontBusKey).copy(dtsFrequency = Some(BigInt((freqMHz * 1e6).round)))
 })
+
 class WithControlBusFrequency(freqMHz: Double) extends Config((site, here, up) => {
   case ControlBusKey => up(ControlBusKey).copy(dtsFrequency = Some(BigInt((freqMHz * 1e6).round)))
 })
@@ -368,11 +387,11 @@ class WithDontDriveBusClocksFromSBus extends Config((site, here, up) => {
 })
 
 class WithCloneCluster(
-  clusterId: Int,
-  cloneClusterId: Int = 0,
-  location: HierarchicalLocation = InSubsystem,
-  cloneLocation: HierarchicalLocation = InSubsystem
-) extends Config((site, here, up) => {
+                        clusterId: Int,
+                        cloneClusterId: Int = 0,
+                        location: HierarchicalLocation = InSubsystem,
+                        cloneLocation: HierarchicalLocation = InSubsystem
+                      ) extends Config((site, here, up) => {
   case ClustersLocated(`location`) => {
     val prev = up(ClustersLocated(location))
     val clusterAttachParams = up(ClustersLocated(cloneLocation)).find(_.clusterParams.clusterId == cloneClusterId)

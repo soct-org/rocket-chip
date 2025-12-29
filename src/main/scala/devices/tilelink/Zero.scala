@@ -13,8 +13,8 @@ import freechips.rocketchip.resources.{SimpleDevice}
 import freechips.rocketchip.tilelink.TLMessages
 
 /** This /dev/null device accepts single beat gets/puts, as well as atomics.
-  * Response data is always 0. Reequests to write data have no effect.
-  */
+ * Response data is always 0. Reequests to write data have no effect.
+ */
 class TLZero(address: AddressSet, beatBytes: Int = 4)(implicit p: Parameters)
   extends DevNullDevice(
     params = DevNullParams(
@@ -27,9 +27,9 @@ class TLZero(address: AddressSet, beatBytes: Int = 4)(implicit p: Parameters)
       mayDenyPut = false),
     minLatency = 1,
     beatBytes = beatBytes,
-    device = new SimpleDevice("rom", Seq("ucbbar,cacheable-zero0")))
-{
+    device = new SimpleDevice("rom", Seq("ucbbar,cacheable-zero0"))) {
   lazy val module = new Impl
+
   class Impl extends LazyModuleImp(this) {
     val (in, edge) = node.in(0)
 

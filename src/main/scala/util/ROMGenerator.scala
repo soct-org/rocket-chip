@@ -23,12 +23,14 @@ class BlackBoxedROM(c: ROMConfig) extends BlackBox {
 object ROMGenerator {
   private var finalized = false
   private val roms = HashMap[BlackBoxedROM, ROMConfig]()
+
   def apply(c: ROMConfig): BlackBoxedROM = {
     require(!finalized)
     val m = Module(new BlackBoxedROM(c))
     roms(m) = c
     m
   }
+
   def lookup(m: BlackBoxedROM): ROMConfig = {
     finalized = true
     roms(m)

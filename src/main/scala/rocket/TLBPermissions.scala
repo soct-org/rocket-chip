@@ -9,24 +9,23 @@ import freechips.rocketchip.diplomacy.{AddressSet, TransferSizes, RegionType, Ad
 import freechips.rocketchip.tilelink.TLManagerParameters
 
 case class TLBPermissions(
-  homogeneous: Bool, // if false, the below are undefined
-  r: Bool, // readable
-  w: Bool, // writeable
-  x: Bool, // executable
-  c: Bool, // cacheable
-  a: Bool, // arithmetic ops
-  l: Bool) // logical ops
+                           homogeneous: Bool, // if false, the below are undefined
+                           r: Bool, // readable
+                           w: Bool, // writeable
+                           x: Bool, // executable
+                           c: Bool, // cacheable
+                           a: Bool, // arithmetic ops
+                           l: Bool) // logical ops
 
-object TLBPageLookup
-{
+object TLBPageLookup {
   private case class TLBFixedPermissions(
-    e: Boolean, // get-/put-effects
-    r: Boolean, // readable
-    w: Boolean, // writeable
-    x: Boolean, // executable
-    c: Boolean, // cacheable
-    a: Boolean, // arithmetic ops
-    l: Boolean) { // logical ops
+                                          e: Boolean, // get-/put-effects
+                                          r: Boolean, // readable
+                                          w: Boolean, // writeable
+                                          x: Boolean, // executable
+                                          c: Boolean, // cacheable
+                                          a: Boolean, // arithmetic ops
+                                          l: Boolean) { // logical ops
     val useful = r || w || x || c || a || l
   }
 
@@ -34,7 +33,7 @@ object TLBPageLookup
     val permissions = managers.map { m =>
       (m.address, TLBFixedPermissions(
         e = Seq(RegionType.PUT_EFFECTS, RegionType.GET_EFFECTS) contains m.regionType,
-        r = m.supportsGet     || m.supportsAcquireB, // if cached, never uses Get
+        r = m.supportsGet || m.supportsAcquireB, // if cached, never uses Get
         w = m.supportsPutFull || m.supportsAcquireT, // if cached, never uses Put
         x = m.executable,
         c = m.supportsAcquireB,
@@ -52,23 +51,23 @@ object TLBPageLookup
 
   // Unmapped memory is considered to be inhomogeneous
   def apply(managers: Seq[TLManagerParameters], xLen: Int, cacheBlockBytes: Int, pageSize: BigInt, maxRequestBytes: Int): UInt => TLBPermissions = {
-    require (isPow2(xLen) && xLen >= 8)
-    require (isPow2(cacheBlockBytes) && cacheBlockBytes >= xLen/8)
-    require (isPow2(pageSize) && pageSize >= cacheBlockBytes)
+    require(isPow2(xLen) && xLen >= 8)
+    require(isPow2(cacheBlockBytes) && cacheBlockBytes >= xLen / 8)
+    require(isPow2(pageSize) && pageSize >= cacheBlockBytes)
 
     val xferSizes = TransferSizes(cacheBlockBytes, cacheBlockBytes)
     val allSizes = TransferSizes(1, maxRequestBytes)
-    val amoSizes = TransferSizes(4, xLen/8)
+    val amoSizes = TransferSizes(4, xLen / 8)
 
     val permissions = managers.foreach { m =>
-      require (!m.supportsGet        || m.supportsGet       .contains(allSizes),  s"Memory region '${m.name}' at ${m.address} only supports ${m.supportsGet} Get, but must support ${allSizes}")
-      require (!m.supportsPutFull    || m.supportsPutFull   .contains(allSizes),  s"Memory region '${m.name}' at ${m.address} only supports ${m.supportsPutFull} PutFull, but must support ${allSizes}")
-      require (!m.supportsPutPartial || m.supportsPutPartial.contains(allSizes),  s"Memory region '${m.name}' at ${m.address} only supports ${m.supportsPutPartial} PutPartial, but must support ${allSizes}")
-      require (!m.supportsAcquireB   || m.supportsAcquireB  .contains(xferSizes), s"Memory region '${m.name}' at ${m.address} only supports ${m.supportsAcquireB} AcquireB, but must support ${xferSizes}")
-      require (!m.supportsAcquireT   || m.supportsAcquireT  .contains(xferSizes), s"Memory region '${m.name}' at ${m.address} only supports ${m.supportsAcquireT} AcquireT, but must support ${xferSizes}")
-      require (!m.supportsLogical    || m.supportsLogical   .contains(amoSizes),  s"Memory region '${m.name}' at ${m.address} only supports ${m.supportsLogical} Logical, but must support ${amoSizes}")
-      require (!m.supportsArithmetic || m.supportsArithmetic.contains(amoSizes),  s"Memory region '${m.name}' at ${m.address} only supports ${m.supportsArithmetic} Arithmetic, but must support ${amoSizes}")
-      require (!(m.supportsAcquireB && m.supportsPutFull && !m.supportsAcquireT), s"Memory region '${m.name}' supports AcquireB (cached read) and PutFull (un-cached write) but not AcquireT (cached write)")
+      require(!m.supportsGet || m.supportsGet.contains(allSizes), s"Memory region '${m.name}' at ${m.address} only supports ${m.supportsGet} Get, but must support ${allSizes}")
+      require(!m.supportsPutFull || m.supportsPutFull.contains(allSizes), s"Memory region '${m.name}' at ${m.address} only supports ${m.supportsPutFull} PutFull, but must support ${allSizes}")
+      require(!m.supportsPutPartial || m.supportsPutPartial.contains(allSizes), s"Memory region '${m.name}' at ${m.address} only supports ${m.supportsPutPartial} PutPartial, but must support ${allSizes}")
+      require(!m.supportsAcquireB || m.supportsAcquireB.contains(xferSizes), s"Memory region '${m.name}' at ${m.address} only supports ${m.supportsAcquireB} AcquireB, but must support ${xferSizes}")
+      require(!m.supportsAcquireT || m.supportsAcquireT.contains(xferSizes), s"Memory region '${m.name}' at ${m.address} only supports ${m.supportsAcquireT} AcquireT, but must support ${xferSizes}")
+      require(!m.supportsLogical || m.supportsLogical.contains(amoSizes), s"Memory region '${m.name}' at ${m.address} only supports ${m.supportsLogical} Logical, but must support ${amoSizes}")
+      require(!m.supportsArithmetic || m.supportsArithmetic.contains(amoSizes), s"Memory region '${m.name}' at ${m.address} only supports ${m.supportsArithmetic} Arithmetic, but must support ${amoSizes}")
+      require(!(m.supportsAcquireB && m.supportsPutFull && !m.supportsAcquireT), s"Memory region '${m.name}' supports AcquireB (cached read) and PutFull (un-cached write) but not AcquireT (cached write)")
     }
 
     val grouped = groupRegions(managers)
@@ -79,7 +78,9 @@ object TLBPageLookup
       val (yes, no) = (yesm.values.flatten.toList, nom.values.flatten.toList)
       // Find the minimal bits needed to distinguish between yes and no
       val decisionMask = AddressDecoder(Seq(yes, no))
+
       def simplify(x: Seq[AddressSet]) = AddressSet.unify(x.map(_.widen(~decisionMask)).distinct)
+
       val (yesf, nof) = (simplify(yes), simplify(no))
       if (yesf.size < no.size) {
         (x: UInt) => yesf.map(_.contains(x)).foldLeft(false.B)(_ || _)
@@ -97,14 +98,15 @@ object TLBPageLookup
     val lfn = lowCostProperty(_.l)
 
     val homo = AddressSet.unify(grouped.values.flatten.toList)
-    (x: UInt) => TLBPermissions(
-      homogeneous = homo.map(_.contains(x)).foldLeft(false.B)(_ || _),
-      r = rfn(x),
-      w = wfn(x),
-      x = xfn(x),
-      c = cfn(x),
-      a = afn(x),
-      l = lfn(x))
+    (x: UInt) =>
+      TLBPermissions(
+        homogeneous = homo.map(_.contains(x)).foldLeft(false.B)(_ || _),
+        r = rfn(x),
+        w = wfn(x),
+        x = xfn(x),
+        c = cfn(x),
+        a = afn(x),
+        l = lfn(x))
   }
 
   // Are all pageSize intervals of mapped regions homogeneous?

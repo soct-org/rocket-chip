@@ -14,13 +14,13 @@ import freechips.rocketchip.util.{BlockDuringReset, Blockable}
 
 object BundleBridgeBlockDuringReset {
   def apply[T <: Data : Blockable](
-    resetCrossingType: ResetCrossingType,
-    name: Option[String] = None,
-    registered: Boolean = false,
-    default: Option[() => T] = None,
-    inputRequiresOutput: Boolean = false,
-    shouldBeInlined: Boolean = true
-  )(implicit p: Parameters): BundleBridgeNexusNode[T] = {
+                                    resetCrossingType: ResetCrossingType,
+                                    name: Option[String] = None,
+                                    registered: Boolean = false,
+                                    default: Option[() => T] = None,
+                                    inputRequiresOutput: Boolean = false,
+                                    shouldBeInlined: Boolean = true
+                                  )(implicit p: Parameters): BundleBridgeNexusNode[T] = {
     val nexus = LazyModule(new BundleBridgeNexus[T](
       inputFn = (s: Seq[T]) => {
         val data = BundleBridgeNexus.requireOne[T](registered)(s)

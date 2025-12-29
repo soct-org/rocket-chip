@@ -26,36 +26,38 @@ case object CacheBlockBytes extends Field[Int](64)
 case object BroadcastKey extends Field(BroadcastParams())
 
 case class BroadcastParams(
-  nTrackers:      Int     = 4,
-  bufferless:     Boolean = false,
-  controlAddress: Option[BigInt] = None,
-  filterFactory:  TLBroadcast.ProbeFilterFactory = BroadcastFilter.factory)
+                            nTrackers: Int = 4,
+                            bufferless: Boolean = false,
+                            controlAddress: Option[BigInt] = None,
+                            filterFactory: TLBroadcast.ProbeFilterFactory = BroadcastFilter.factory)
 
 /** Coherence manager configuration */
 case object SubsystemBankedCoherenceKey extends Field(BankedCoherenceParams())
-case class ClusterBankedCoherenceKey(clusterId: Int) extends Field(BankedCoherenceParams(nBanks=0))
+
+case class ClusterBankedCoherenceKey(clusterId: Int) extends Field(BankedCoherenceParams(nBanks = 0))
 
 case class BankedCoherenceParams(
-  nBanks: Int = 1,
-  coherenceManager: CoherenceManagerInstantiationFn = broadcastManager
-) {
-  require (isPow2(nBanks) || nBanks == 0)
+                                  nBanks: Int = 1,
+                                  coherenceManager: CoherenceManagerInstantiationFn = broadcastManager
+                                ) {
+  require(isPow2(nBanks) || nBanks == 0)
 }
 
 case class CoherenceManagerWrapperParams(
-    blockBytes: Int,
-    beatBytes: Int,
-    nBanks: Int,
-    name: String,
-    dtsFrequency: Option[BigInt] = None)
-  (val coherenceManager: CoherenceManagerInstantiationFn)
-  extends HasTLBusParams 
-  with TLBusWrapperInstantiationLike
-{
+                                          blockBytes: Int,
+                                          beatBytes: Int,
+                                          nBanks: Int,
+                                          name: String,
+                                          dtsFrequency: Option[BigInt] = None)
+                                        (val coherenceManager: CoherenceManagerInstantiationFn)
+  extends HasTLBusParams
+    with TLBusWrapperInstantiationLike {
   def instantiate(context: HasTileLinkLocations, loc: Location[TLBusWrapper])(implicit p: Parameters): CoherenceManagerWrapper = {
     val cmWrapper = LazyModule(new CoherenceManagerWrapper(this, context))
     cmWrapper.suggestName(loc.name + "_wrapper")
-    cmWrapper.halt.foreach { context.anyLocationMap += loc.halt(_) }
+    cmWrapper.halt.foreach {
+      context.anyLocationMap += loc.halt(_)
+    }
     context.tlBusWrapperLocationMap += (loc -> cmWrapper)
     cmWrapper
   }
@@ -65,13 +67,18 @@ class CoherenceManagerWrapper(params: CoherenceManagerWrapperParams, context: Ha
   val (tempIn, tempOut, halt) = params.coherenceManager(context)
 
   private val coherent_jbar = LazyModule(new TLJbar)
+
   def busView: TLEdge = coherent_jbar.node.edges.out.head
+
   val inwardNode = tempIn :*= coherent_jbar.node
   val builtInDevices = BuiltInDevices.none
   val prefixNode = None
 
   private def banked(node: TLOutwardNode): TLOutwardNode =
-    if (params.nBanks == 0) node else { TLTempNode() :=* BankBinder(params.nBanks, params.blockBytes) :*= node }
+    if (params.nBanks == 0) node else {
+      TLTempNode() :=* BankBinder(params.nBanks, params.blockBytes) :*= node
+    }
+
   val outwardNode = banked(tempOut)
 }
 
@@ -79,24 +86,30 @@ object CoherenceManagerWrapper {
   type CoherenceManagerInstantiationFn = HasTileLinkLocations => (TLInwardNode, TLOutwardNode, Option[IntOutwardNode])
 
   def broadcastManagerFn(
-    name: String,
-    location: HierarchicalLocation,
-    controlPortsSlaveWhere: TLBusWrapperLocation
-  ): CoherenceManagerInstantiationFn = { context =>
+                          name: String,
+                          location: HierarchicalLocation,
+                          controlPortsSlaveWhere: TLBusWrapperLocation
+                        ): CoherenceManagerInstantiationFn = { context =>
     implicit val p = context.p
     val cbus = context.locateTLBusWrapper(controlPortsSlaveWhere)
 
     val BroadcastParams(nTrackers, bufferless, controlAddress, filterFactory) = p(BroadcastKey)
     val bh = LazyModule(new TLBroadcast(TLBroadcastParams(
-      lineBytes     = p(CacheBlockBytes),
-      numTrackers   = nTrackers,
-      bufferless    = bufferless,
-      control       = controlAddress.map(x => TLBroadcastControlParams(AddressSet(x, 0xfff), cbus.beatBytes)),
+      lineBytes = p(CacheBlockBytes),
+      numTrackers = nTrackers,
+      bufferless = bufferless,
+      control = controlAddress.map(x => TLBroadcastControlParams(AddressSet(x, 0xfff), cbus.beatBytes)),
       filterFactory = filterFactory)))
     bh.suggestName(name)
 
-    bh.controlNode.foreach { _ := cbus.coupleTo(s"${name}_ctrl") { TLBuffer(1) := TLFragmenter(cbus) := _ } }
-    bh.intNode.foreach { context.ibus.fromSync := _ }
+    bh.controlNode.foreach {
+      _ := cbus.coupleTo(s"${name}_ctrl") {
+        TLBuffer(1) := TLFragmenter(cbus) := _
+      }
+    }
+    bh.intNode.foreach {
+      context.ibus.fromSync := _
+    }
 
     (bh.node, bh.node, None)
   }

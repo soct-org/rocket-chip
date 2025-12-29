@@ -18,38 +18,38 @@ import freechips.rocketchip.util.{BundleField, ControlKey, ElaborationArtefacts,
 import freechips.rocketchip.util.DataToAugmentedData
 
 class AXI4TLStateBundle(val sourceBits: Int) extends Bundle {
-  val size   = UInt(4.W)
+  val size = UInt(4.W)
   val source = UInt((sourceBits max 1).W)
 }
 
 case object AXI4TLState extends ControlKey[AXI4TLStateBundle]("tl_state")
+
 case class AXI4TLStateField(sourceBits: Int) extends BundleField[AXI4TLStateBundle](AXI4TLState, Output(new AXI4TLStateBundle(sourceBits)), x => {
   x.size := 0.U
   x.source := 0.U
 })
 
 /** TLtoAXI4IdMap serves as a record for the translation performed between id spaces.
-  *
-  * Its member [axi4Masters] is used as the new AXI4MasterParameters in diplomacy.
-  * Its member [mapping] is used as the template for the circuit generated in TLToAXI4Node.module.
-  */
-class TLtoAXI4IdMap(tlPort: TLMasterPortParameters) extends IdMap[TLToAXI4IdMapEntry]
-{
+ *
+ * Its member [axi4Masters] is used as the new AXI4MasterParameters in diplomacy.
+ * Its member [mapping] is used as the template for the circuit generated in TLToAXI4Node.module.
+ */
+class TLtoAXI4IdMap(tlPort: TLMasterPortParameters) extends IdMap[TLToAXI4IdMapEntry] {
   val tlMasters = tlPort.masters.sortBy(_.sourceId).sortWith(TLToAXI4.sortByType)
   private val axi4IdSize = tlMasters.map { tl => if (tl.requestFifo) 1 else tl.sourceId.size }
-  private val axi4IdStart = axi4IdSize.scanLeft(0)(_+_).init
+  private val axi4IdStart = axi4IdSize.scanLeft(0)(_ + _).init
   val axi4Masters = axi4IdStart.zip(axi4IdSize).zip(tlMasters).map { case ((start, size), tl) =>
     AXI4MasterParameters(
-      name      = tl.name,
-      id        = IdRange(start, start+size),
-      aligned   = true,
+      name = tl.name,
+      id = IdRange(start, start + size),
+      aligned = true,
       maxFlight = Some(if (tl.requestFifo) tl.sourceId.size else 1),
-      nodePath  = tl.nodePath)
+      nodePath = tl.nodePath)
   }
 
   private val axi4IdEnd = axi4Masters.map(_.id.end).max
-  private val axiDigits = String.valueOf(axi4IdEnd-1).length()
-  private val tlDigits = String.valueOf(tlPort.endSourceId-1).length()
+  private val axiDigits = String.valueOf(axi4IdEnd - 1).length()
+  private val tlDigits = String.valueOf(tlPort.endSourceId - 1).length()
   protected val fmt = s"\t[%${axiDigits}d, %${axiDigits}d) <= [%${tlDigits}d, %${tlDigits}d) %s%s%s"
 
   val mapping: Seq[TLToAXI4IdMapEntry] = tlMasters.zip(axi4Masters).map { case (tl, axi) =>
@@ -58,8 +58,7 @@ class TLtoAXI4IdMap(tlPort: TLMasterPortParameters) extends IdMap[TLToAXI4IdMapE
 }
 
 case class TLToAXI4IdMapEntry(axi4Id: IdRange, tlId: IdRange, name: String, isCache: Boolean, requestFifo: Boolean)
-  extends IdMapEntry
-{
+  extends IdMapEntry {
   val from = tlId
   val to = axi4Id
   val maxTransactionsInFlight = Some(tlId.size)
@@ -68,52 +67,56 @@ case class TLToAXI4IdMapEntry(axi4Id: IdRange, tlId: IdRange, name: String, isCa
 case class TLToAXI4Node(wcorrupt: Boolean = true)(implicit valName: ValName) extends MixedAdapterNode(TLImp, AXI4Imp)(
   dFn = { p =>
     AXI4MasterPortParameters(
-      masters    = (new TLtoAXI4IdMap(p)).axi4Masters,
+      masters = (new TLtoAXI4IdMap(p)).axi4Masters,
       requestFields = (if (wcorrupt) Seq(AMBACorruptField()) else Seq()) ++ p.requestFields.filter(!_.isInstanceOf[AMBAProtField]),
-      echoFields    = AXI4TLStateField(log2Ceil(p.endSourceId)) +: p.echoFields,
-      responseKeys  = p.responseKeys)
+      echoFields = AXI4TLStateField(log2Ceil(p.endSourceId)) +: p.echoFields,
+      responseKeys = p.responseKeys)
   },
-  uFn = { p => TLSlavePortParameters.v1(
-    managers = p.slaves.map { case s =>
-      TLSlaveParameters.v1(
-        address            = s.address,
-        resources          = s.resources,
-        regionType         = s.regionType,
-        executable         = s.executable,
-        nodePath           = s.nodePath,
-        supportsGet        = s.supportsRead,
-        supportsPutFull    = s.supportsWrite,
-        supportsPutPartial = s.supportsWrite,
-        fifoId             = Some(0),
-        mayDenyPut         = true,
-        mayDenyGet         = true)},
+  uFn = { p =>
+    TLSlavePortParameters.v1(
+      managers = p.slaves.map { case s =>
+        TLSlaveParameters.v1(
+          address = s.address,
+          resources = s.resources,
+          regionType = s.regionType,
+          executable = s.executable,
+          nodePath = s.nodePath,
+          supportsGet = s.supportsRead,
+          supportsPutFull = s.supportsWrite,
+          supportsPutPartial = s.supportsWrite,
+          fifoId = Some(0),
+          mayDenyPut = true,
+          mayDenyGet = true)
+      },
       beatBytes = p.beatBytes,
       minLatency = p.minLatency,
       responseFields = p.responseFields,
-      requestKeys    = AMBAProt +: p.requestKeys)
+      requestKeys = AMBAProt +: p.requestKeys)
   })
 
 // wcorrupt alone is not enough; a slave must include AMBACorrupt in the slave port's requestKeys
-class TLToAXI4(val combinational: Boolean = true, val adapterName: Option[String] = None, val stripBits: Int = 0, val wcorrupt: Boolean = true)(implicit p: Parameters) extends LazyModule
-{
+class TLToAXI4(val combinational: Boolean = true, val adapterName: Option[String] = None, val stripBits: Int = 0, val wcorrupt: Boolean = true)(implicit p: Parameters) extends LazyModule {
   require(stripBits == 0, "stripBits > 0 is no longer supported on TLToAXI4")
   val node = TLToAXI4Node(wcorrupt)
 
   lazy val module = new Impl
+
   class Impl extends LazyModuleImp(this) {
     (node.in zip node.out) foreach { case ((in, edgeIn), (out, edgeOut)) =>
-      val slaves  = edgeOut.slave.slaves
+      val slaves = edgeOut.slave.slaves
 
       // All pairs of slaves must promise that they will never interleave data
-      require (slaves(0).interleavedId.isDefined)
-      slaves.foreach { s => require (s.interleavedId == slaves(0).interleavedId) }
+      require(slaves(0).interleavedId.isDefined)
+      slaves.foreach { s => require(s.interleavedId == slaves(0).interleavedId) }
 
       // Construct the source=>ID mapping table
       val map = new TLtoAXI4IdMap(edgeIn.client)
       val sourceStall = WireDefault(VecInit.fill(edgeIn.client.endSourceId)(false.B))
       val sourceTable = WireDefault(VecInit.fill(edgeIn.client.endSourceId)(0.U.asTypeOf(out.aw.bits.id)))
       val idStall = WireDefault(VecInit.fill(edgeOut.master.endId)(false.B))
-      var idCount = Array.fill(edgeOut.master.endId) { None:Option[Int] }
+      var idCount = Array.fill(edgeOut.master.endId) {
+        None: Option[Int]
+      }
 
       map.mapping.foreach { case TLToAXI4IdMapEntry(axi4Id, tlId, _, _, fifo) =>
         for (i <- 0 until tlId.size) {
@@ -121,7 +124,9 @@ class TLToAXI4(val combinational: Boolean = true, val adapterName: Option[String
           sourceStall(tlId.start + i) := idStall(id)
           sourceTable(tlId.start + i) := id.U
         }
-        if (fifo) { idCount(axi4Id.start) = Some(tlId.size) }
+        if (fifo) {
+          idCount(axi4Id.start) = Some(tlId.size)
+        }
       }
 
       adapterName.foreach { n =>
@@ -133,51 +138,53 @@ class TLToAXI4(val combinational: Boolean = true, val adapterName: Option[String
       // All of those fields could potentially require 0 bits (argh. Chisel.)
       // We will pack all of that extra information into the echo bits.
 
-      require (log2Ceil(edgeIn.maxLgSize+1) <= 4)
+      require(log2Ceil(edgeIn.maxLgSize + 1) <= 4)
       val a_address = edgeIn.address(in.a.bits)
-      val a_source  = in.a.bits.source
-      val a_size    = edgeIn.size(in.a.bits)
-      val a_isPut   = edgeIn.hasData(in.a.bits)
+      val a_source = in.a.bits.source
+      val a_size = edgeIn.size(in.a.bits)
+      val a_isPut = edgeIn.hasData(in.a.bits)
       val (a_first, a_last, _) = edgeIn.firstlast(in.a)
 
       val r_state = out.r.bits.echo(AXI4TLState)
-      val r_source  = r_state.source
-      val r_size    = r_state.size
+      val r_source = r_state.source
+      val r_size = r_state.size
 
       val b_state = out.b.bits.echo(AXI4TLState)
-      val b_source  = b_state.source
-      val b_size    = b_state.size
+      val b_source = b_state.source
+      val b_size = b_state.size
 
       // We need these Queues because AXI4 queues are irrevocable
       val depth = if (combinational) 1 else 2
       val out_arw = Wire(Decoupled(new AXI4BundleARW(out.params)))
       val out_w = Wire(chiselTypeOf(out.w))
-      out.w :<>= Queue.irrevocable(out_w, entries=depth, flow=combinational)
-      val queue_arw = Queue.irrevocable(out_arw, entries=depth, flow=combinational)
+      out.w :<>= Queue.irrevocable(out_w, entries = depth, flow = combinational)
+      val queue_arw = Queue.irrevocable(out_arw, entries = depth, flow = combinational)
 
       // Fan out the ARW channel to AR and AW
       out.ar.bits := queue_arw.bits
       out.aw.bits := queue_arw.bits
       out.ar.valid := queue_arw.valid && !queue_arw.bits.wen
-      out.aw.valid := queue_arw.valid &&  queue_arw.bits.wen
+      out.aw.valid := queue_arw.valid && queue_arw.bits.wen
       queue_arw.ready := Mux(queue_arw.bits.wen, out.aw.ready, out.ar.ready)
 
       val beatBytes = edgeIn.manager.beatBytes
-      val maxSize   = log2Ceil(beatBytes).U
-      val doneAW    = RegInit(false.B)
-      when (in.a.fire) { doneAW := !a_last }
+      val maxSize = log2Ceil(beatBytes).U
+      val doneAW = RegInit(false.B)
+      when(in.a.fire) {
+        doneAW := !a_last
+      }
 
       val arw = out_arw.bits
-      arw.wen   := a_isPut
-      arw.id    := sourceTable(a_source)
-      arw.addr  := a_address
-      arw.len   := UIntToOH1(a_size, AXI4Parameters.lenBits + log2Ceil(beatBytes)) >> log2Ceil(beatBytes)
-      arw.size  := Mux(a_size >= maxSize, maxSize, a_size)
+      arw.wen := a_isPut
+      arw.id := sourceTable(a_source)
+      arw.addr := a_address
+      arw.len := UIntToOH1(a_size, AXI4Parameters.lenBits + log2Ceil(beatBytes)) >> log2Ceil(beatBytes)
+      arw.size := Mux(a_size >= maxSize, maxSize, a_size)
       arw.burst := AXI4Parameters.BURST_INCR
-      arw.lock  := 0.U // not exclusive (LR/SC unsupported b/c no forward progress guarantee)
+      arw.lock := 0.U // not exclusive (LR/SC unsupported b/c no forward progress guarantee)
       arw.cache := 0.U // do not allow AXI to modify our transactions
-      arw.prot  := AXI4Parameters.PROT_PRIVILEGED
-      arw.qos   := 0.U // no QoS
+      arw.prot := AXI4Parameters.PROT_PRIVILEGED
+      arw.qos := 0.U // no QoS
       Connectable.waiveUnmatched(arw.user, in.a.bits.user) match {
         case (lhs, rhs) => lhs :<= rhs
       }
@@ -186,19 +193,19 @@ class TLToAXI4(val combinational: Boolean = true, val adapterName: Option[String
       }
       val a_extra = arw.echo(AXI4TLState)
       a_extra.source := a_source
-      a_extra.size   := a_size
+      a_extra.size := a_size
 
       in.a.bits.user.lift(AMBAProt).foreach { x =>
-        val prot  = Wire(Vec(3, Bool()))
+        val prot = Wire(Vec(3, Bool()))
         val cache = Wire(Vec(4, Bool()))
-        prot(0) :=  x.privileged
+        prot(0) := x.privileged
         prot(1) := !x.secure
-        prot(2) :=  x.fetch
+        prot(2) := x.fetch
         cache(0) := x.bufferable
         cache(1) := x.modifiable
         cache(2) := x.readalloc
         cache(3) := x.writealloc
-        arw.prot  := Cat(prot.reverse)
+        arw.prot := Cat(prot.reverse)
         arw.cache := Cat(cache.reverse)
       }
 
@@ -210,16 +217,20 @@ class TLToAXI4(val combinational: Boolean = true, val adapterName: Option[String
       out_w.bits.data := in.a.bits.data
       out_w.bits.strb := in.a.bits.mask
       out_w.bits.last := a_last
-      out_w.bits.user.lift(AMBACorrupt).foreach { _ := in.a.bits.corrupt }
+      out_w.bits.user.lift(AMBACorrupt).foreach {
+        _ := in.a.bits.corrupt
+      }
 
       // R and B => D arbitration
       val r_holds_d = RegInit(false.B)
-      when (out.r.fire) { r_holds_d := !out.r.bits.last }
+      when(out.r.fire) {
+        r_holds_d := !out.r.bits.last
+      }
       // Give R higher priority than B, unless B has been delayed for 8 cycles
       val b_delay = Reg(UInt(3.W))
-      when (out.b.valid && !out.b.ready) {
+      when(out.b.valid && !out.b.ready) {
         b_delay := b_delay + 1.U
-      } .otherwise {
+      }.otherwise {
         b_delay := 0.U
       }
       val r_wins = (out.r.valid && b_delay =/= 7.U) || r_holds_d
@@ -232,10 +243,12 @@ class TLToAXI4(val combinational: Boolean = true, val adapterName: Option[String
       // request. We must pulse extend this value as AXI is allowed to change the
       // value of RRESP on every beat, and ChipLink may not.
       val r_first = RegInit(true.B)
-      when (out.r.fire) { r_first := out.r.bits.last }
-      val r_denied  = out.r.bits.resp === AXI4Parameters.RESP_DECERR holdUnless r_first
+      when(out.r.fire) {
+        r_first := out.r.bits.last
+      }
+      val r_denied = out.r.bits.resp === AXI4Parameters.RESP_DECERR holdUnless r_first
       val r_corrupt = out.r.bits.resp =/= AXI4Parameters.RESP_OKAY
-      val b_denied  = out.b.bits.resp =/= AXI4Parameters.RESP_OKAY
+      val b_denied = out.b.bits.resp =/= AXI4Parameters.RESP_OKAY
 
       val r_d = edgeIn.AccessAck(r_source, r_size, 0.U, denied = r_denied, corrupt = r_corrupt || r_denied)
       val b_d = edgeIn.AccessAck(b_source, b_size, denied = b_denied)
@@ -277,12 +290,18 @@ class TLToAXI4(val combinational: Boolean = true, val adapterName: Option[String
         val dec = ds && d_last && in.d.fire
         count := count + inc.asUInt - dec.asUInt
 
-        assert (!dec || count =/= 0.U)        // underflow
-        assert (!inc || count =/= maxCount.U) // overflow
+        assert(!dec || count =/= 0.U) // underflow
+        assert(!inc || count =/= maxCount.U) // overflow
 
-        when (inc) { write := arw.wen }
+        when(inc) {
+          write := arw.wen
+        }
         // If only one transaction can be inflight, it can't mismatch
-        val mismatch = if (maxCount > 1) { write =/= arw.wen } else { false.B }
+        val mismatch = if (maxCount > 1) {
+          write =/= arw.wen
+        } else {
+          false.B
+        }
         s := (!idle && mismatch) || (count === maxCount.U)
       }
 
@@ -294,19 +313,17 @@ class TLToAXI4(val combinational: Boolean = true, val adapterName: Option[String
   }
 }
 
-object TLToAXI4
-{
-  def apply(combinational: Boolean = true, adapterName: Option[String] = None, stripBits: Int = 0, wcorrupt: Boolean = true)(implicit p: Parameters) =
-  {
+object TLToAXI4 {
+  def apply(combinational: Boolean = true, adapterName: Option[String] = None, stripBits: Int = 0, wcorrupt: Boolean = true)(implicit p: Parameters) = {
     val tl2axi4 = LazyModule(new TLToAXI4(combinational, adapterName, stripBits, wcorrupt))
     tl2axi4.node
   }
 
   def sortByType(a: TLMasterParameters, b: TLMasterParameters): Boolean = {
-    if ( a.supports.probe && !b.supports.probe) return false
-    if (!a.supports.probe &&  b.supports.probe) return true
-    if ( a.requestFifo    && !b.requestFifo   ) return false
-    if (!a.requestFifo    &&  b.requestFifo   ) return true
+    if (a.supports.probe && !b.supports.probe) return false
+    if (!a.supports.probe && b.supports.probe) return true
+    if (a.requestFifo && !b.requestFifo) return false
+    if (!a.requestFifo && b.requestFifo) return true
     return false
   }
 }

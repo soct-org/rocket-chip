@@ -11,12 +11,12 @@ import mainargs._
 
 object Main {
   @main def elaborate(
-    @arg(name = "dir", doc = "output directory") dir: String,
-    @arg(name = "top", doc = "top Module or LazyModule fullpath") top: String,
-    @arg(name = "config", doc = "CDE configs") config: Seq[String]
-  ) = {
+                       @arg(name = "dir", doc = "output directory") dir: String,
+                       @arg(name = "top", doc = "top Module or LazyModule fullpath") top: String,
+                       @arg(name = "config", doc = "CDE configs") config: Seq[String]
+                     ) = {
     var topName: String = null
-    val gen = () => 
+    val gen = () =>
       Class
         .forName(top)
         .getConstructor(classOf[Parameters])
@@ -25,19 +25,19 @@ object Main {
             val currentConfig = Class.forName(currentName).getDeclaredConstructor().newInstance().asInstanceOf[Config]
             currentConfig ++ config
         })) match {
-          case m: RawModule => m
-          case lm: LazyModule => LazyModule(lm).module
-        }
+        case m: RawModule => m
+        case lm: LazyModule => LazyModule(lm).module
+      }
 
     val annos = Seq(
       new Elaborate,
       new Convert
     ).foldLeft(
-      Seq(
-        TargetDirAnnotation(dir),
-        ChiselGeneratorAnnotation(() => gen())
-      ): AnnotationSeq
-    ) { case (annos, phase) => phase.transform(annos) }
+        Seq(
+          TargetDirAnnotation(dir),
+          ChiselGeneratorAnnotation(() => gen())
+        ): AnnotationSeq
+      ) { case (annos, phase) => phase.transform(annos) }
       .flatMap {
         case firrtl.stage.FirrtlCircuitAnnotation(circuit) =>
           topName = circuit.main
@@ -48,7 +48,7 @@ object Main {
         case a => Some(a)
       }
     os.write(os.Path(dir) / s"$topName.anno.json", firrtl.annotations.JsonProtocol.serialize(annos))
-    freechips.rocketchip.util.ElaborationArtefacts.files.foreach{ case (ext, contents) => os.write.over(os.Path(dir) / s"${config.mkString("_")}.${ext}", contents()) }
+    freechips.rocketchip.util.ElaborationArtefacts.files.foreach { case (ext, contents) => os.write.over(os.Path(dir) / s"${config.mkString("_")}.${ext}", contents()) }
   }
 
   def main(args: Array[String]): Unit = ParserForMethods(this).runOrExit(args.toIndexedSeq)

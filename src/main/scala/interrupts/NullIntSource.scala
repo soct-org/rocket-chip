@@ -8,13 +8,16 @@ import org.chipsalliance.cde.config._
 import org.chipsalliance.diplomacy.lazymodule._
 
 /** Useful for stubbing out parts of an interrupt interface where certain devices might be missing */
-class NullIntSource(num: Int = 1, ports: Int = 1, sources: Int = 1)(implicit p: Parameters) extends LazyModule
-{
+class NullIntSource(num: Int = 1, ports: Int = 1, sources: Int = 1)(implicit p: Parameters) extends LazyModule {
   val intnode = IntSourceNode(IntSourcePortSimple(num, ports, sources))
 
   lazy val module = new Impl
+
   class Impl extends LazyRawModuleImp(this) {
-    intnode.out.foreach { case (o, _) => o.foreach { _ := false.B } }
+    intnode.out.foreach { case (o, _) => o.foreach {
+      _ := false.B
+    }
+    }
   }
 }
 

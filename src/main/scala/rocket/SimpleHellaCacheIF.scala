@@ -4,7 +4,7 @@
 package freechips.rocketchip.rocket
 
 import chisel3._
-import chisel3.util.{Valid,Decoupled,Queue,log2Up,OHToUInt,UIntToOH,PriorityEncoderOH,Arbiter,RegEnable,Cat}
+import chisel3.util.{Valid, Decoupled, Queue, log2Up, OHToUInt, UIntToOH, PriorityEncoderOH, Arbiter, RegEnable, Cat}
 
 import org.chipsalliance.cde.config.Parameters
 import freechips.rocketchip.util._
@@ -16,8 +16,8 @@ import freechips.rocketchip.util._
  * completed.
  */
 class SimpleHellaCacheIFReplayQueue(depth: Int)
-    (implicit val p: Parameters) extends Module
-    with HasL1HellaCacheParameters {
+                                   (implicit val p: Parameters) extends Module
+  with HasL1HellaCacheParameters {
   val io = IO(new Bundle {
     val req = Flipped(Decoupled(new HellaCacheReq))
     val nack = Flipped(Valid(Bits(coreParams.dcacheReqTagBits.W)))
@@ -80,20 +80,23 @@ class SimpleHellaCacheIFReplayQueue(depth: Int)
   // Set inflight bit when a request is made
   // Clear it when it is successfully completed
   inflight := (inflight | Mux(io.req.fire, next_inflight_onehot, 0.U)) &
-                          ~Mux(io.resp.valid, resp_onehot, 0.U)
+    ~Mux(io.resp.valid, resp_onehot, 0.U)
 
-  when (io.req.fire) {
+  when(io.req.fire) {
     reqs(next_inflight) := io.req.bits
   }
 
   // Only one replay outstanding at a time
-  when (io.replay.fire) { replaying := true.B }
-  when (nack_head || replay_complete) { replaying := false.B }
+  when(io.replay.fire) {
+    replaying := true.B
+  }
+  when(nack_head || replay_complete) {
+    replaying := false.B
+  }
 }
 
 // exposes a sane decoupled request interface
-class SimpleHellaCacheIF(implicit p: Parameters) extends Module
-{
+class SimpleHellaCacheIF(implicit p: Parameters) extends Module {
   val io = IO(new Bundle {
     val requestor = Flipped(new HellaCacheIO())
     val cache = new HellaCacheIO

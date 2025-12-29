@@ -6,8 +6,7 @@ import chisel3._
 import chisel3.util.{Counter, RegEnable}
 
 /** Blocks transactions until the cycle after reset. */
-object BlockDuringReset
-{
+object BlockDuringReset {
   private def outOfReset(stretchCycles: Int): Bool = stretchCycles match {
     case 0 => RegNext(true.B, false.B)
     case i => RegEnable(true.B, false.B, Counter(true.B, i)._2)

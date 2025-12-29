@@ -13,15 +13,15 @@ import scala.reflect.ClassTag
 
 // All the user-level bells and whistles
 class WithNHugeCores(
-  n: Int,
-  location: HierarchicalLocation,
-  crossing: RocketCrossingParams,
-) extends Config((site, here, up) => {
+                      n: Int,
+                      location: HierarchicalLocation,
+                      crossing: RocketCrossingParams,
+                    ) extends Config((site, here, up) => {
   case TilesLocated(`location`) => {
     val prev = up(TilesLocated(`location`))
     val idOffset = up(NumTiles)
     val big = RocketTileParams(
-      core   = RocketCoreParams(
+      core = RocketCoreParams(
         mulDiv = Some(MulDivParams(
           mulUnroll = 8,
           mulEarlyOut = true,
@@ -60,15 +60,15 @@ class WithNHugeCores(
 }
 
 class WithNBigCores(
-  n: Int,
-  location: HierarchicalLocation,
-  crossing: RocketCrossingParams,
-) extends Config((site, here, up) => {
+                     n: Int,
+                     location: HierarchicalLocation,
+                     crossing: RocketCrossingParams,
+                   ) extends Config((site, here, up) => {
   case TilesLocated(`location`) => {
     val prev = up(TilesLocated(`location`))
     val idOffset = up(NumTiles)
     val big = RocketTileParams(
-      core   = RocketCoreParams(mulDiv = Some(MulDivParams(
+      core = RocketCoreParams(mulDiv = Some(MulDivParams(
         mulUnroll = 8,
         mulEarlyOut = true,
         divEarlyOut = true))),
@@ -97,9 +97,9 @@ class WithNBigCores(
 }
 
 class WithNMedCores(
-  n: Int,
-  crossing: RocketCrossingParams = RocketCrossingParams(),
-) extends Config((site, here, up) => {
+                     n: Int,
+                     crossing: RocketCrossingParams = RocketCrossingParams(),
+                   ) extends Config((site, here, up) => {
   case TilesLocated(InSubsystem) => {
     val prev = up(TilesLocated(InSubsystem))
     val idOffset = up(NumTiles)
@@ -130,9 +130,9 @@ class WithNMedCores(
 })
 
 class WithNSmallCores(
-  n: Int,
-  crossing: RocketCrossingParams = RocketCrossingParams()
-) extends Config((site, here, up) => {
+                       n: Int,
+                       crossing: RocketCrossingParams = RocketCrossingParams()
+                     ) extends Config((site, here, up) => {
   case TilesLocated(InSubsystem) => {
     val prev = up(TilesLocated(InSubsystem))
     val idOffset = up(NumTiles)
@@ -222,28 +222,47 @@ class RocketDCacheConfig(f: DCacheParams => DCacheParams) extends RocketTileConf
   dcache = tp.dcache.map(dc => f(dc))
 ))
 
-class WithL1ICacheSets(sets: Int)                      extends RocketICacheConfig(_.copy(nSets=sets))
-class WithL1ICacheWays(ways: Int)                      extends RocketICacheConfig(_.copy(nWays=ways))
-class WithL1ICacheECC(dataECC: String, tagECC: String) extends RocketICacheConfig(_.copy(dataECC = Some(dataECC), tagECC = Some(tagECC)))
-class WithL1ICacheRowBits(n: Int)                      extends RocketICacheConfig(_.copy(rowBits = n))
-class WithL1ICacheTLBSets(sets: Int)                   extends RocketICacheConfig(_.copy(nTLBSets = sets))
-class WithL1ICacheTLBWays(ways: Int)                   extends RocketICacheConfig(_.copy(nTLBWays = ways))
-class WithL1ICacheTLBBasePageSectors(sectors: Int)     extends RocketICacheConfig(_.copy(nTLBBasePageSectors = sectors))
-class WithL1ICacheTLBSuperpages(superpages: Int)       extends RocketICacheConfig(_.copy(nTLBSuperpages = superpages))
-class WithL1ICacheBlockBytes(bytes: Int = 64)          extends RocketICacheConfig(_.copy(blockBytes = bytes))
+class WithL1ICacheSets(sets: Int) extends RocketICacheConfig(_.copy(nSets = sets))
 
-class WithL1DCacheSets(sets: Int)                      extends RocketDCacheConfig(_.copy(nSets=sets))
-class WithL1DCacheWays(ways: Int)                      extends RocketDCacheConfig(_.copy(nWays=ways))
+class WithL1ICacheWays(ways: Int) extends RocketICacheConfig(_.copy(nWays = ways))
+
+class WithL1ICacheECC(dataECC: String, tagECC: String) extends RocketICacheConfig(_.copy(dataECC = Some(dataECC), tagECC = Some(tagECC)))
+
+class WithL1ICacheRowBits(n: Int) extends RocketICacheConfig(_.copy(rowBits = n))
+
+class WithL1ICacheTLBSets(sets: Int) extends RocketICacheConfig(_.copy(nTLBSets = sets))
+
+class WithL1ICacheTLBWays(ways: Int) extends RocketICacheConfig(_.copy(nTLBWays = ways))
+
+class WithL1ICacheTLBBasePageSectors(sectors: Int) extends RocketICacheConfig(_.copy(nTLBBasePageSectors = sectors))
+
+class WithL1ICacheTLBSuperpages(superpages: Int) extends RocketICacheConfig(_.copy(nTLBSuperpages = superpages))
+
+class WithL1ICacheBlockBytes(bytes: Int = 64) extends RocketICacheConfig(_.copy(blockBytes = bytes))
+
+class WithL1DCacheSets(sets: Int) extends RocketDCacheConfig(_.copy(nSets = sets))
+
+class WithL1DCacheWays(ways: Int) extends RocketDCacheConfig(_.copy(nWays = ways))
+
 class WithL1DCacheECC(dataECC: String, tagECC: String) extends RocketDCacheConfig(_.copy(dataECC = Some(dataECC), tagECC = Some(tagECC)))
-class WithL1DCacheRowBits(n: Int)                      extends RocketDCacheConfig(_.copy(rowBits = n))
-class WithL1DCacheTLBSets(sets: Int)                   extends RocketDCacheConfig(_.copy(nTLBSets = sets))
-class WithL1DCacheTLBWays(ways: Int)                   extends RocketDCacheConfig(_.copy(nTLBWays = ways))
-class WithL1DCacheTLBBasePageSectors(sectors: Int)     extends RocketDCacheConfig(_.copy(nTLBBasePageSectors = sectors))
-class WithL1DCacheTLBSuperpages(superpages: Int)       extends RocketDCacheConfig(_.copy(nTLBSuperpages = superpages))
-class WithL1DCacheBlockBytes(bytes: Int = 64)          extends RocketDCacheConfig(_.copy(blockBytes = bytes))
-class WithL1DCacheNonblocking(nMSHRs: Int)             extends RocketDCacheConfig(_.copy(nMSHRs = nMSHRs))
-class WithL1DCacheClockGating                          extends RocketDCacheConfig(_.copy(clockGate = true))
-class WithL1DCacheDTIMAddress(address: BigInt)         extends RocketDCacheConfig(_.copy(scratch = Some(address)))
+
+class WithL1DCacheRowBits(n: Int) extends RocketDCacheConfig(_.copy(rowBits = n))
+
+class WithL1DCacheTLBSets(sets: Int) extends RocketDCacheConfig(_.copy(nTLBSets = sets))
+
+class WithL1DCacheTLBWays(ways: Int) extends RocketDCacheConfig(_.copy(nTLBWays = ways))
+
+class WithL1DCacheTLBBasePageSectors(sectors: Int) extends RocketDCacheConfig(_.copy(nTLBBasePageSectors = sectors))
+
+class WithL1DCacheTLBSuperpages(superpages: Int) extends RocketDCacheConfig(_.copy(nTLBSuperpages = superpages))
+
+class WithL1DCacheBlockBytes(bytes: Int = 64) extends RocketDCacheConfig(_.copy(blockBytes = bytes))
+
+class WithL1DCacheNonblocking(nMSHRs: Int) extends RocketDCacheConfig(_.copy(nMSHRs = nMSHRs))
+
+class WithL1DCacheClockGating extends RocketDCacheConfig(_.copy(clockGate = true))
+
+class WithL1DCacheDTIMAddress(address: BigInt) extends RocketDCacheConfig(_.copy(scratch = Some(address)))
 
 class WithScratchpadsOnly extends RocketTileConfig(tp => tp.copy(
   core = tp.core.copy(useVM = false),
@@ -259,6 +278,7 @@ class WithCacheRowBits(n: Int) extends RocketTileConfig(tp => tp.copy(
 ))
 
 class WithBEU(addr: BigInt) extends RocketTileConfig(_.copy(beuAddr = Some(addr)))
+
 class WithBoundaryBuffers(buffers: Option[RocketTileBoundaryBufferParams] = Some(RocketTileBoundaryBufferParams(true))) extends RocketTileConfig(_.copy(boundaryBuffers = buffers))
 
 class WithRV32 extends RocketCoreConfig(c => c.copy(
@@ -268,57 +288,78 @@ class WithRV32 extends RocketCoreConfig(c => c.copy(
   mulDiv = Some(MulDivParams(mulUnroll = 8))
 ))
 
-class WithoutVM                                           extends RocketCoreConfig(_.copy(useVM = false))
-class WithCFlushEnabled                                   extends RocketCoreConfig(_.copy(haveCFlush = true))
-class WithNBreakpoints(hwbp: Int)                         extends RocketCoreConfig(_.copy(nBreakpoints = hwbp))
-class WithHypervisor(hext: Boolean = true)                extends RocketCoreConfig(_.copy(useHypervisor = hext))
-class WithCease(enable: Boolean = true)                   extends RocketCoreConfig(_.copy(haveCease = enable))
-class WithCoreClockGatingEnabled                          extends RocketCoreConfig(_.copy(clockGate = true))
-class WithPgLevels(n: Int)                                extends RocketCoreConfig(_.copy(pgLevels = n))
-class WithZba                                             extends RocketCoreConfig(_.copy(useZba = true))
-class WithZbb                                             extends RocketCoreConfig(_.copy(useZbb = true))
-class WithZbs                                             extends RocketCoreConfig(_.copy(useZbs = true))
-class WithB                                               extends RocketCoreConfig(_.copy(useZba = true, useZbb = true, useZbs = true))
-class WithSV48                                            extends WithPgLevels(4)
-class WithSV39                                            extends WithPgLevels(3)
+class WithoutVM extends RocketCoreConfig(_.copy(useVM = false))
+
+class WithCFlushEnabled extends RocketCoreConfig(_.copy(haveCFlush = true))
+
+class WithNBreakpoints(hwbp: Int) extends RocketCoreConfig(_.copy(nBreakpoints = hwbp))
+
+class WithHypervisor(hext: Boolean = true) extends RocketCoreConfig(_.copy(useHypervisor = hext))
+
+class WithCease(enable: Boolean = true) extends RocketCoreConfig(_.copy(haveCease = enable))
+
+class WithCoreClockGatingEnabled extends RocketCoreConfig(_.copy(clockGate = true))
+
+class WithPgLevels(n: Int) extends RocketCoreConfig(_.copy(pgLevels = n))
+
+class WithZba extends RocketCoreConfig(_.copy(useZba = true))
+
+class WithZbb extends RocketCoreConfig(_.copy(useZbb = true))
+
+class WithZbs extends RocketCoreConfig(_.copy(useZbs = true))
+
+class WithB extends RocketCoreConfig(_.copy(useZba = true, useZbb = true, useZbs = true))
+
+class WithSV48 extends WithPgLevels(4)
+
+class WithSV39 extends WithPgLevels(3)
 
 // Simulation-only configs
 class WithNoSimulationTimeout extends RocketCoreConfig(_.copy(haveSimTimeout = false))
+
 class WithDebugROB(enable: Boolean = true, size: Int = 0) extends RocketCoreConfig(_.copy(debugROB = Option.when(enable)(DebugROBParams(size))))
 
 // FPU configs
-class WithoutFPU            extends RocketCoreConfig(_.copy(fpu = None))
-class WithFP16              extends RocketCoreConfig(c => c.copy(fpu = c.fpu.map(_.copy(minFLen = 16))))
+class WithoutFPU extends RocketCoreConfig(_.copy(fpu = None))
+
+class WithFP16 extends RocketCoreConfig(c => c.copy(fpu = c.fpu.map(_.copy(minFLen = 16))))
+
 class WithFPUWithoutDivSqrt extends RocketCoreConfig(c => c.copy(fpu = c.fpu.map(_.copy(divSqrt = false))))
 
 // mul-div configs
 class WithFastMulDiv extends RocketCoreConfig(c => c.copy(mulDiv = Some(
   MulDivParams(mulUnroll = 8, mulEarlyOut = c.xLen > 32, divEarlyOut = true)
 )))
+
 class WithCustomFastMulDiv(mUnroll: Int = 8, mEarlyOut: Boolean = true, dUnroll: Int = 1, dEarlyOut: Boolean = true, dEarlyOutGranularity: Int = 1) extends RocketCoreConfig(_.copy(mulDiv = Some(
   MulDivParams(mulUnroll = mUnroll, mulEarlyOut = mEarlyOut, divUnroll = dUnroll, divEarlyOut = dEarlyOut, divEarlyOutGranularity = dEarlyOutGranularity)
 )))
+
 class WithoutMulDiv extends RocketCoreConfig(_.copy(mulDiv = None))
 
 // Branch-prediction configs
 class WithDefaultBtb extends RocketTileConfig(t => t.copy(btb = Some(BTBParams())))
-class WithNoBtb      extends RocketTileConfig(_.copy(btb = None))
+
+class WithNoBtb extends RocketTileConfig(_.copy(btb = None))
 
 // Tile CDC configs
 class WithCDC(crossingType: ClockCrossingType = SynchronousCrossing()) extends RocketCrossingConfig(_.copy(crossingType = crossingType))
-class WithSeperateClockReset                                           extends RocketCrossingConfig(_.copy(forceSeparateClockReset = true))
-class WithSynchronousCDCs                                              extends WithCDC(SynchronousCrossing())
-class WithAsynchronousCDCs(depth: Int, sync: Int)                      extends WithCDC(AsynchronousCrossing(depth, sync))
-class WithRationalCDCs(direction: RationalDirection = Flexible)        extends WithCDC(RationalCrossing(direction))
 
+class WithSeperateClockReset extends RocketCrossingConfig(_.copy(forceSeparateClockReset = true))
+
+class WithSynchronousCDCs extends WithCDC(SynchronousCrossing())
+
+class WithAsynchronousCDCs(depth: Int, sync: Int) extends WithCDC(AsynchronousCrossing(depth, sync))
+
+class WithRationalCDCs(direction: RationalDirection = Flexible) extends WithCDC(RationalCrossing(direction))
 
 
 class WithCloneRocketTiles(
-  n: Int = 1,
-  cloneTileId: Int = 0,
-  location: HierarchicalLocation = InSubsystem,
-  cloneLocation: HierarchicalLocation = InSubsystem
-) extends Config((site, here, up) => {
+                            n: Int = 1,
+                            cloneTileId: Int = 0,
+                            location: HierarchicalLocation = InSubsystem,
+                            cloneLocation: HierarchicalLocation = InSubsystem
+                          ) extends Config((site, here, up) => {
   case TilesLocated(`location`) => {
     val prev = up(TilesLocated(location))
     val idOffset = up(NumTiles)

@@ -12,11 +12,11 @@ import freechips.rocketchip.unittest.{UnitTest, UnitTestModule}
 
 class TLRRTest0(address: BigInt)(implicit p: Parameters)
   extends RRTest0(address)
-  with HasTLControlRegMap
+    with HasTLControlRegMap
 
 class TLRRTest1(address: BigInt)(implicit p: Parameters)
   extends RRTest1(address, concurrency = 6, undefZero = false)
-  with HasTLControlRegMap
+    with HasTLControlRegMap
 
 class FuzzRRTest0(txns: Int)(implicit p: Parameters) extends LazyModule {
   val fuzz = LazyModule(new TLFuzzer(txns))
@@ -25,6 +25,7 @@ class FuzzRRTest0(txns: Int)(implicit p: Parameters) extends LazyModule {
   rrtr.node := TLFragmenter(4, 32) := TLDelayer(0.1) := fuzz.node
 
   lazy val module = new Impl
+
   class Impl extends LazyModuleImp(this) with UnitTestModule {
     io.finished := fuzz.module.io.finished
   }
@@ -43,6 +44,7 @@ class FuzzRRTest1(txns: Int)(implicit p: Parameters) extends LazyModule {
   rrtr.node := TLFragmenter(4, 32) := TLDelayer(0.1) := fuzz.node
 
   lazy val module = new Impl
+
   class Impl extends LazyModuleImp(this) with UnitTestModule {
     io.finished := fuzz.module.io.finished
   }

@@ -9,7 +9,7 @@ import org.chipsalliance.diplomacy.lazymodule._
 object IOHelper {
 
   def forNonSynchronous[T <: Data](gen: => T, xs: Seq[ClockCrossingType], prefix: String): Seq[Option[ModuleValue[T]]] = {
-   xs.zipWithIndex.map { case (x, i) => forNonSynchronous(gen, x, prefix + s"_$i") }
+    xs.zipWithIndex.map { case (x, i) => forNonSynchronous(gen, x, prefix + s"_$i") }
   }
 
   def forNonSynchronous[T <: Data](gen: => T, x: ClockCrossingType, name: String): Option[ModuleValue[T]] = {

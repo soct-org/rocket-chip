@@ -29,52 +29,53 @@ case object PossibleTileLocations extends Field[Seq[HierarchicalLocation]](Nil)
 case object NumTiles extends Field[Int](0)
 
 /** Whether to add timing-closure registers along the path of the hart id
-  * as it propagates through the subsystem and into the tile.
-  *
-  * These are typically only desirable when a dynamically programmable prefix is being combined
-  * with the static hart id via [[freechips.rocketchip.subsystem.HasTiles.tileHartIdNexusNode]].
-  */
+ * as it propagates through the subsystem and into the tile.
+ *
+ * These are typically only desirable when a dynamically programmable prefix is being combined
+ * with the static hart id via [[freechips.rocketchip.subsystem.HasTiles.tileHartIdNexusNode]].
+ */
 case object InsertTimingClosureRegistersOnHartIds extends Field[Boolean](false)
 
 /** Whether per-tile hart ids are going to be driven as inputs into a HasTiles block,
-  * and if so, what their width should be.
-  */
+ * and if so, what their width should be.
+ */
 case object HasTilesExternalHartIdWidthKey extends Field[Option[Int]](None)
 
 /** Whether per-tile reset vectors are going to be driven as inputs into a HasTiles block.
-  *
-  * Unlike the hart ids, the reset vector width is determined by the sinks within the tiles,
-  * based on the size of the address map visible to the tiles.
-  */
+ *
+ * Unlike the hart ids, the reset vector width is determined by the sinks within the tiles,
+ * based on the size of the address map visible to the tiles.
+ */
 case object HasTilesExternalResetVectorKey extends Field[Boolean](true)
 
 /** These are sources of "constants" that are driven into the tile.
-  * 
-  * While they are not expected to change dyanmically while the tile is executing code,
-  * they may be either tied to a contant value or programmed during boot or reset.
-  * They need to be instantiated before tiles are attached within the subsystem containing them.
-  */
-trait HasTileInputConstants { this: LazyModule with Attachable with InstantiatesHierarchicalElements =>
+ *
+ * While they are not expected to change dyanmically while the tile is executing code,
+ * they may be either tied to a contant value or programmed during boot or reset.
+ * They need to be instantiated before tiles are attached within the subsystem containing them.
+ */
+trait HasTileInputConstants {
+  this: LazyModule with Attachable with InstantiatesHierarchicalElements =>
   /** tileHartIdNode is used to collect publishers and subscribers of hartids. */
   val tileHartIdNodes: SortedMap[Int, BundleBridgeEphemeralNode[UInt]] = (0 until nTotalTiles).map { i =>
     (i, BundleBridgeEphemeralNode[UInt]())
   }.to(SortedMap)
 
   /** tileHartIdNexusNode is a BundleBridgeNexus that collects dynamic hart prefixes.
-    *
-    *   Each "prefix" input is actually the same full width as the outer hart id; the expected usage
-    *   is that each prefix source would set only some non-overlapping portion of the bits to non-zero values.
-    *   This node orReduces them, and further combines the reduction with the static ids assigned to each tile,
-    *   producing a unique, dynamic hart id for each tile.
-    *
-    *   If p(InsertTimingClosureRegistersOnHartIds) is set, the input and output values are registered.
-    *
-    *   The output values are [[dontTouch]]'d to prevent constant propagation from pulling the values into
-    *   the tiles if they are constant, which would ruin deduplication of tiles that are otherwise homogeneous.
-    */
+   *
+   * Each "prefix" input is actually the same full width as the outer hart id; the expected usage
+   * is that each prefix source would set only some non-overlapping portion of the bits to non-zero values.
+   * This node orReduces them, and further combines the reduction with the static ids assigned to each tile,
+   * producing a unique, dynamic hart id for each tile.
+   *
+   * If p(InsertTimingClosureRegistersOnHartIds) is set, the input and output values are registered.
+   *
+   * The output values are [[dontTouch]]'d to prevent constant propagation from pulling the values into
+   * the tiles if they are constant, which would ruin deduplication of tiles that are otherwise homogeneous.
+   */
   val tileHartIdNexusNode = LazyModule(new BundleBridgeNexus[UInt](
     inputFn = BundleBridgeNexus.orReduction[UInt](registered = p(InsertTimingClosureRegistersOnHartIds)) _,
-    outputFn = (prefix: UInt, n: Int) =>  Seq.tabulate(n) { i =>
+    outputFn = (prefix: UInt, n: Int) => Seq.tabulate(n) { i =>
       val y = dontTouch(prefix | totalTileIdList(i).U(p(MaxHartIdBits).W)) // dontTouch to keep constant prop from breaking tile dedup
       if (p(InsertTimingClosureRegistersOnHartIds)) BundleBridgeNexus.safeRegNext(y) else y
     },
@@ -95,9 +96,9 @@ trait HasTileInputConstants { this: LazyModule with Attachable with Instantiates
   )
 
   /** tileHartIdIONodes may generate subsystem IOs, one per tile, allowing the parent to assign unique hart ids.
-    *
-    *   Or, if such IOs are not configured to exist, tileHartIdNexusNode is used to supply an id to each tile.
-    */
+   *
+   * Or, if such IOs are not configured to exist, tileHartIdNexusNode is used to supply an id to each tile.
+   */
   val tileHartIdIONodes: Seq[BundleBridgeSource[UInt]] = p(HasTilesExternalHartIdWidthKey) match {
     case Some(w) => (0 until nTotalTiles).map { i =>
       val hartIdSource = BundleBridgeSource(() => UInt(w.W))
@@ -111,9 +112,9 @@ trait HasTileInputConstants { this: LazyModule with Attachable with Instantiates
   }
 
   /** tileResetVectorIONodes may generate subsystem IOs, one per tile, allowing the parent to assign unique reset vectors.
-    *
-    *   Or, if such IOs are not configured to exist, tileResetVectorNexusNode is used to supply a single reset vector to every tile.
-    */
+   *
+   * Or, if such IOs are not configured to exist, tileResetVectorNexusNode is used to supply a single reset vector to every tile.
+   */
   val tileResetVectorIONodes: Seq[BundleBridgeSource[UInt]] = p(HasTilesExternalResetVectorKey) match {
     case true => (0 until nTotalTiles).map { i =>
       val resetVectorSource = BundleBridgeSource[UInt]()
@@ -128,10 +129,11 @@ trait HasTileInputConstants { this: LazyModule with Attachable with Instantiates
 }
 
 /** These are sinks of notifications that are driven out from the tile.
-  *
-  * They need to be instantiated before tiles are attached to the subsystem containing them.
-  */
-trait HasTileNotificationSinks { this: LazyModule =>
+ *
+ * They need to be instantiated before tiles are attached to the subsystem containing them.
+ */
+trait HasTileNotificationSinks {
+  this: LazyModule =>
   val tileHaltXbarNode = IntXbar()
   val tileHaltSinkNode = IntSinkNode(IntSinkPortSimple())
   tileHaltSinkNode := tileHaltXbarNode
@@ -146,22 +148,27 @@ trait HasTileNotificationSinks { this: LazyModule =>
 }
 
 /** Standardized interface by which parameterized tiles can be attached to contexts containing interconnect resources.
-  *
-  *   Sub-classes of this trait can optionally override the individual connect functions in order to specialize
-  *   their attachment behaviors, but most use cases should be be handled simply by changing the implementation
-  *   of the injectNode functions in crossingParams.
-  */
+ *
+ * Sub-classes of this trait can optionally override the individual connect functions in order to specialize
+ * their attachment behaviors, but most use cases should be be handled simply by changing the implementation
+ * of the injectNode functions in crossingParams.
+ */
 trait CanAttachTile {
   type TileType <: BaseTile
   type TileContextType <: DefaultHierarchicalElementContextType
+
   def tileParams: InstantiableTileParams[TileType]
+
   def crossingParams: HierarchicalElementCrossingParamsLike
 
   /** Narrow waist through which all tiles are intended to pass while being instantiated. */
   def instantiate(allTileParams: Seq[TileParams], instantiatedTiles: SortedMap[Int, TilePRCIDomain[_]])(implicit p: Parameters): TilePRCIDomain[TileType] = {
     val clockSinkParams = tileParams.clockSinkParams.copy(name = Some(tileParams.uniqueName))
-    val tile_prci_domain = LazyModule(new TilePRCIDomain[TileType](clockSinkParams, crossingParams) { self =>
-      val element = self.element_reset_domain { LazyModule(tileParams.instantiate(crossingParams, PriorityMuxHartIdFromSeq(allTileParams))) }
+    val tile_prci_domain = LazyModule(new TilePRCIDomain[TileType](clockSinkParams, crossingParams) {
+      self =>
+      val element = self.element_reset_domain {
+        LazyModule(tileParams.instantiate(crossingParams, PriorityMuxHartIdFromSeq(allTileParams)))
+      }
     })
     tile_prci_domain
   }
@@ -205,7 +212,9 @@ trait CanAttachTile {
     //       we stub out missing interrupts with constant sources here.
 
     // 1. Debug interrupt is definitely asynchronous in all cases.
-    domain.element.intInwardNode := domain { IntSyncAsyncCrossingSink(3) } :=
+    domain.element.intInwardNode := domain {
+      IntSyncAsyncCrossingSink(3)
+    } :=
       context.debugNodes(domain.element.tileId)
 
     // 2. The CLINT and PLIC output interrupts are synchronous to the CLINT/PLIC respectively,
@@ -237,9 +246,13 @@ trait CanAttachTile {
     // 4. Interrupts coming out of the tile are sent to the PLIC,
     //    so might need to be synchronized depending on the Tile's crossing type.
     context.tileToPlicNodes.get(domain.element.tileId).foreach { node =>
-      FlipRendering { implicit p => domain.element.intOutwardNode.foreach { out =>
-        context.toPlicDomain { node := domain.crossIntOut(crossingParams.crossingType, out) }
-      }}
+      FlipRendering { implicit p =>
+        domain.element.intOutwardNode.foreach { out =>
+          context.toPlicDomain {
+            node := domain.crossIntOut(crossingParams.crossingType, out)
+          }
+        }
+      }
     }
 
     // 5. Connect NMI inputs to the tile. These inputs are synchronous to the respective core_clock.
@@ -250,8 +263,8 @@ trait CanAttachTile {
   def connectOutputNotifications(domain: TilePRCIDomain[TileType], context: TileContextType): Unit = {
     implicit val p = context.p
     domain {
-      context.tileHaltXbarNode  :=* domain.crossIntOut(NoCrossing, domain.element.haltNode)
-      context.tileWFIXbarNode   :=* domain.crossIntOut(NoCrossing, domain.element.wfiNode)
+      context.tileHaltXbarNode :=* domain.crossIntOut(NoCrossing, domain.element.haltNode)
+      context.tileWFIXbarNode :=* domain.crossIntOut(NoCrossing, domain.element.wfiNode)
       context.tileCeaseXbarNode :=* domain.crossIntOut(NoCrossing, domain.element.ceaseNode)
     }
     // TODO should context be forced to have a trace sink connected here?
@@ -264,7 +277,9 @@ trait CanAttachTile {
     val tlBusToGetPrefixFrom = context.locateTLBusWrapper(crossingParams.mmioBaseAddressPrefixWhere)
     domain.element.hartIdNode := context.tileHartIdNodes(domain.element.tileId)
     domain.element.resetVectorNode := context.tileResetVectorNodes(domain.element.tileId)
-    tlBusToGetPrefixFrom.prefixNode.foreach { domain.element.mmioAddressPrefixNode := _ }
+    tlBusToGetPrefixFrom.prefixNode.foreach {
+      domain.element.mmioAddressPrefixNode := _
+    }
   }
 
   /** Connect power/reset/clock resources. */
@@ -304,21 +319,25 @@ trait CanAttachTile {
 }
 
 case class CloneTileAttachParams(
-  sourceTileId: Int,
-  cloneParams: CanAttachTile
-) extends CanAttachTile {
+                                  sourceTileId: Int,
+                                  cloneParams: CanAttachTile
+                                ) extends CanAttachTile {
   type TileType = cloneParams.TileType
   type TileContextType = cloneParams.TileContextType
 
   def tileParams = cloneParams.tileParams
+
   def crossingParams = cloneParams.crossingParams
 
   override def instantiate(allTileParams: Seq[TileParams], instantiatedTiles: SortedMap[Int, TilePRCIDomain[_]])(implicit p: Parameters): TilePRCIDomain[TileType] = {
     require(instantiatedTiles.contains(sourceTileId))
     val clockSinkParams = tileParams.clockSinkParams.copy(name = Some(tileParams.uniqueName))
     val tile_prci_domain = CloneLazyModule(
-      new TilePRCIDomain[TileType](clockSinkParams, crossingParams) { self =>
-        val element = self.element_reset_domain { LazyModule(tileParams.instantiate(crossingParams, PriorityMuxHartIdFromSeq(allTileParams))) }
+      new TilePRCIDomain[TileType](clockSinkParams, crossingParams) {
+        self =>
+        val element = self.element_reset_domain {
+          LazyModule(tileParams.instantiate(crossingParams, PriorityMuxHartIdFromSeq(allTileParams)))
+        }
       },
       instantiatedTiles(sourceTileId).asInstanceOf[TilePRCIDomain[TileType]]
     )

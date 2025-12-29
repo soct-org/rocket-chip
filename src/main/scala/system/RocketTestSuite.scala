@@ -10,8 +10,11 @@ abstract class RocketTestSuite {
   val makeTargetName: String
   val names: LinkedHashSet[String]
   val envName: String
+
   def kind: String
-  def postScript = s"""
+
+  def postScript =
+    s"""
 
 $$(addprefix $$(output_dir)/, $$(addsuffix .hex, $$($makeTargetName))): $$(output_dir)/%.hex: $dir/%.hex
 \tmkdir -p $$(output_dir)
@@ -35,14 +38,18 @@ run-$makeTargetName-fst: $$(addprefix $$(output_dir)/, $$(addsuffix .fst, $$($ma
 class AssemblyTestSuite(prefix: String, val names: LinkedHashSet[String])(val envName: String) extends RocketTestSuite {
   val dir = "$(RISCV)/riscv64-unknown-elf/share/riscv-tests/isa"
   val makeTargetName = prefix + "-" + envName + "-asm-tests"
+
   def kind = "asm"
+
   override def toString = s"$makeTargetName = \\\n" + names.map(n => s"\t$prefix-$envName-$n").mkString(" \\\n") + postScript
 }
 
 class BenchmarkTestSuite(makePrefix: String, val dir: String, val names: LinkedHashSet[String]) extends RocketTestSuite {
   val envName = ""
   val makeTargetName = makePrefix + "-bmark-tests"
+
   def kind = "bmark"
+
   override def toString = s"$makeTargetName = \\\n" + names.map(n => s"\t$n.riscv").mkString(" \\\n") + postScript
 }
 
@@ -50,26 +57,32 @@ class RegressionTestSuite(val names: LinkedHashSet[String]) extends RocketTestSu
   val envName = ""
   val dir = "$(RISCV)/riscv64-unknown-elf/share/riscv-tests/isa"
   val makeTargetName = "regression-tests"
+
   def kind = "regression"
+
   override def toString = s"$makeTargetName = \\\n" + names.mkString(" \\\n")
 }
 
 object TestGeneration {
   private var suites = collection.immutable.ListMap[String, RocketTestSuite]()
 
-  def addSuite(s: RocketTestSuite): Unit = { suites += (s.makeTargetName -> s) }
-  
-  def addSuites(s: Seq[RocketTestSuite]): Unit = { s.foreach(addSuite) }
+  def addSuite(s: RocketTestSuite): Unit = {
+    suites += (s.makeTargetName -> s)
+  }
+
+  def addSuites(s: Seq[RocketTestSuite]): Unit = {
+    s.foreach(addSuite)
+  }
 
   private[rocketchip] def gen(kind: String, s: Seq[RocketTestSuite]) = {
-    if(s.length > 0) {
+    if (s.length > 0) {
       val envs = s.groupBy(_.envName)
       val targets = s.map(t => s"$$(${t.makeTargetName})").mkString(" ")
       s.map(_.toString).mkString("\n") +
-      envs.view.filterKeys(_ != "").toMap.map( {
-                                     case (env,envsuites) => {
-                                       val suites = envsuites.map(t => s"$$(${t.makeTargetName})").mkString(" ")
-                                       s"""
+        envs.view.filterKeys(_ != "").toMap.map({
+          case (env, envsuites) => {
+            val suites = envsuites.map(t => s"$$(${t.makeTargetName})").mkString(" ")
+            s"""
 run-$kind-$env-tests: $$(addprefix $$(output_dir)/, $$(addsuffix .out, $suites))
 \t@echo; perl -ne 'print "  [$$$$1] $$$$ARGV \\t$$$$2\\n" if( /\\*{3}(.{8})\\*{3}(.*)/ || /ASSERTION (FAILED):(.*)/i )' $$^ /dev/null | perl -pe 'BEGIN { $$$$failed = 0 } $$$$failed = 1 if(/FAILED/i); END { exit($$$$failed) }'
 run-$kind-$env-tests-debug: $$(addprefix $$(output_dir)/, $$(addsuffix .vpd, $suites))
@@ -78,7 +91,10 @@ run-$kind-$env-tests-fst: $$(addprefix $$(output_dir)/, $$(addsuffix .fst, $suit
 \t@echo; perl -ne 'print "  [$$$$1] $$$$ARGV \\t$$$$2\\n" if( /\\*{3}(.{8})\\*{3}(.*)/ || /ASSERTION (FAILED):(.*)/i )' $$(patsubst %.fst,%.out,$$^) /dev/null | perl -pe 'BEGIN { $$$$failed = 0 } $$$$failed = 1 if(/FAILED/i); END { exit($$$$failed) }'
 run-$kind-$env-tests-fast: $$(addprefix $$(output_dir)/, $$(addsuffix .run, $suites))
 \t@echo; perl -ne 'print "  [$$$$1] $$$$ARGV \\t$$$$2\\n" if( /\\*{3}(.{8})\\*{3}(.*)/ || /ASSERTION (FAILED):(.*)/i )' $$^ /dev/null | perl -pe 'BEGIN { $$$$failed = 0 } $$$$failed = 1 if(/FAILED/i); END { exit($$$$failed) }'
-"""} } ).mkString("\n") + s"""
+"""
+          }
+        }).mkString("\n") +
+        s"""
 run-$kind-tests: $$(addprefix $$(output_dir)/, $$(addsuffix .out, $targets))
 \t@echo; perl -ne 'print "  [$$$$1] $$$$ARGV \\t$$$$2\\n" if( /\\*{3}(.{8})\\*{3}(.*)/ || /ASSERTION (FAILED):(.*)/i )' $$^ /dev/null | perl -pe 'BEGIN { $$$$failed = 0 } $$$$failed = 1 if(/FAILED/i); END { exit($$$$failed) }'
 run-$kind-tests-debug: $$(addprefix $$(output_dir)/, $$(addsuffix .vpd, $targets))
@@ -88,7 +104,9 @@ run-$kind-tests-fst: $$(addprefix $$(output_dir)/, $$(addsuffix .fst, $targets))
 run-$kind-tests-fast: $$(addprefix $$(output_dir)/, $$(addsuffix .run, $targets))
 \t@echo; perl -ne 'print "  [$$$$1] $$$$ARGV \\t$$$$2\\n" if( /\\*{3}(.{8})\\*{3}(.*)/ || /ASSERTION (FAILED):(.*)/i )' $$^ /dev/null | perl -pe 'BEGIN { $$$$failed = 0 } $$$$failed = 1 if(/FAILED/i); END { exit($$$$failed) }'
 """
-    } else { "\n" }
+    } else {
+      "\n"
+    }
   }
 
   def generateMakeFrag: String = {
@@ -135,7 +153,7 @@ object DefaultTestSuites {
   val rv64umNames = LinkedHashSet("divuw", "divw", "mulw", "remuw", "remw")
   val rv64um = new AssemblyTestSuite("rv64um", rv32umNames ++ rv64umNames)(_)
 
-  val rv64uaSansLRSCNames = rv32uaSansLRSCNames.map(_.replaceAll("_w","_d"))
+  val rv64uaSansLRSCNames = rv32uaSansLRSCNames.map(_.replaceAll("_w", "_d"))
   val rv64uaSansLRSC = new AssemblyTestSuite("rv64ua", rv32uaSansLRSCNames ++ rv64uaSansLRSCNames)(_)
 
   val rv64uaNames = rv64uaSansLRSCNames.union(LinkedHashSet("lrsc"))
