@@ -306,7 +306,8 @@ object RWNotify {
   def apply(n: Int, rVal: UInt, wVal: UInt, rNotify: Bool, wNotify: Bool, desc: Option[RegFieldDesc] = None): RegField = {
     RegField(n,
       RegReadFn((ready) => {
-        rNotify := ready; (true.B, rVal)
+        rNotify := ready;
+        (true.B, rVal)
       }),
       RegWriteFn((valid, data) => {
         wNotify := valid

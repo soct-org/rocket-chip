@@ -161,7 +161,7 @@ object JtagTapGenerator {
    *       - 4.4.1b TDI must appear high when undriven
    *       - 4.5.1b TDO must be inactive except when shifting data (undriven? 6.1.2)
    *       - 6.1.3.1b TAP controller must not be (re-?)initialized by system reset (allows
-   *       boundary-scan testing of reset pin)
+   *         boundary-scan testing of reset pin)
    *   - 6.1 TAP controller can be initialized by a on-chip power on reset generator, the same one
    *     that would initialize system logic
    *

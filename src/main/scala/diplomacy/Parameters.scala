@@ -173,7 +173,8 @@ case class AddressSet(base: BigInt, mask: BigInt) extends Ordered[AddressSet] {
   def finite = mask >= 0
 
   def max = {
-    require(finite, "Max cannot be calculated on infinite mask"); base | mask
+    require(finite, "Max cannot be calculated on infinite mask");
+    base | mask
   }
 
   // Widen the match function to ignore all bits in imask

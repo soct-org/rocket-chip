@@ -123,13 +123,22 @@ class BreakpointUnit(n: Int)(implicit val p: Parameters) extends Module with Has
     bpw.ivalid(0) := false.B
 
     when(end && r && ri) {
-      io.xcpt_ld := (action === 0.U); io.debug_ld := (action === 1.U); bpw.valid(0) := true.B; bpw.rvalid(0) := true.B
+      io.xcpt_ld := (action === 0.U);
+      io.debug_ld := (action === 1.U);
+      bpw.valid(0) := true.B;
+      bpw.rvalid(0) := true.B
     }
     when(end && w && wi) {
-      io.xcpt_st := (action === 0.U); io.debug_st := (action === 1.U); bpw.valid(0) := true.B; bpw.wvalid(0) := true.B
+      io.xcpt_st := (action === 0.U);
+      io.debug_st := (action === 1.U);
+      bpw.valid(0) := true.B;
+      bpw.wvalid(0) := true.B
     }
     when(end && x && xi) {
-      io.xcpt_if := (action === 0.U); io.debug_if := (action === 1.U); bpw.valid(0) := true.B; bpw.ivalid(0) := true.B
+      io.xcpt_if := (action === 0.U);
+      io.debug_if := (action === 1.U);
+      bpw.valid(0) := true.B;
+      bpw.ivalid(0) := true.B
     }
 
     (end || r, end || w, end || x)

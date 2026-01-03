@@ -22,11 +22,13 @@ object Location {
 
 class LocationMap[T] private(val internalMap: Map[String, T]) extends Map[Location[_], T] {
   def addOne(kv: (Location[_], T)) = {
-    (internalMap += (kv._1.name -> kv._2)); this
+    (internalMap += (kv._1.name -> kv._2));
+    this
   }
 
   def subtractOne(key: Location[_]) = {
-    (internalMap -= key.name); this
+    (internalMap -= key.name);
+    this
   }
 
   def get(key: Location[_]) = internalMap.get(key.name)

@@ -27,7 +27,8 @@ class Repeater[T <: Data](gen: T) extends Module {
   io.full := full
 
   when(io.enq.fire && io.repeat) {
-    full := true.B; saved := io.enq.bits
+    full := true.B;
+    saved := io.enq.bits
   }
   when(io.deq.fire && !io.repeat) {
     full := false.B

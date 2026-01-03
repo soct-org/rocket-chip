@@ -63,10 +63,13 @@ object RRTestCombinational {
     lazy val combo = Module(new RRTestCombinational(bits, rvalid, wready))
     RegField(bits,
       RegReadFn(ready => {
-        combo.io.rready := ready; (combo.io.rvalid, combo.io.rdata)
+        combo.io.rready := ready;
+        (combo.io.rvalid, combo.io.rdata)
       }),
       RegWriteFn((valid, data) => {
-        combo.io.wvalid := valid; combo.io.wdata := data; combo.io.wready
+        combo.io.wvalid := valid;
+        combo.io.wdata := data;
+        combo.io.wready
       }))
   }
 }

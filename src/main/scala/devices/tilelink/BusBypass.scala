@@ -105,7 +105,9 @@ class TLBusBypassBar(dFn: TLSlavePortParameters => TLSlavePortParameters)(implic
     in.d.valid := Mux(bypass, out0.d.valid, out1.d.valid)
 
     def cast(x: TLBundleD) = {
-      val out = WireDefault(in.d.bits); out <> x; out
+      val out = WireDefault(in.d.bits);
+      out <> x;
+      out
     }
 
     in.d.bits := Mux(bypass, cast(out0.d.bits), cast(out1.d.bits))
@@ -116,7 +118,9 @@ class TLBusBypassBar(dFn: TLSlavePortParameters => TLSlavePortParameters)(implic
       in.b.valid := Mux(bypass, out0.b.valid, out1.b.valid)
 
       def cast(x: TLBundleB) = {
-        val out = Wire(in.b.bits); out <> x; out
+        val out = Wire(in.b.bits);
+        out <> x;
+        out
       }
 
       in.b.bits := Mux(bypass, cast(out0.b.bits), cast(out1.b.bits))

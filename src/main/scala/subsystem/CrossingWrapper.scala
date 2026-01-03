@@ -18,7 +18,7 @@ import freechips.rocketchip.interrupts.IntResetDomainCrossing
 
 @deprecated("Only use this trait if you are confident you island will only ever be crossed to a single clock", "rocket-chip 1.3")
 trait HasCrossing extends CrossesToOnlyOneClockDomain {
-  this: LazyModule => }
+  this: LazyModule =>}
 
 /** Given a constant clock crossing type, define a bunch of helper methods for
  * crossing to all the procotols.

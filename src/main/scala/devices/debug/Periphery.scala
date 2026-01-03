@@ -266,9 +266,10 @@ object Debug {
                     psd: PSDTestMode = 0.U.asTypeOf(new PSDTestMode()))
                   (implicit p: Parameters): Unit = {
     connectDebugClockAndReset(debugOpt, c)
-    resetctrlOpt.map { rcio => rcio.hartIsInReset.map {
-      _ := r
-    }
+    resetctrlOpt.map { rcio =>
+      rcio.hartIsInReset.map {
+        _ := r
+      }
     }
     debugOpt.map { debug =>
       debug.clockeddmi.foreach { d =>
@@ -326,9 +327,10 @@ object Debug {
     psdio.foreach(_.psd.foreach {
       _ <> 0.U.asTypeOf(new PSDTestMode())
     })
-    resetctrlOpt.map { rcio => rcio.hartIsInReset.map {
-      _ := false.B
-    }
+    resetctrlOpt.map { rcio =>
+      rcio.hartIsInReset.map {
+        _ := false.B
+      }
     }
     debugOpt.map { debug =>
       debug.clock := true.B.asClock

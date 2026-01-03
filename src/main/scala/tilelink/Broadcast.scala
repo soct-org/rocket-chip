@@ -296,7 +296,8 @@ class TLBroadcast(params: TLBroadcastParams)(implicit p: Parameters) extends Laz
       (filter.io.int, controlNode match {
         case Some(x) => filter.useRegFields(bankIndex)
         case None => {
-          filter.tieRegFields(bankIndex); Nil
+          filter.tieRegFields(bankIndex);
+          Nil
         }
       })
     }.unzip

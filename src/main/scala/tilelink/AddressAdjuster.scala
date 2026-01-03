@@ -135,9 +135,10 @@ class AddressAdjuster(
 
   // Now we create a custom node that joins the local and remote manager parameters, changing the PMAs of devices in the adjustable region
   val node: TLJunctionNode = TLJunctionNode(
-    clientFn = { cp => Seq.fill(node.dRatio) {
-      cp(0)
-    }
+    clientFn = { cp =>
+      Seq.fill(node.dRatio) {
+        cp(0)
+      }
     },
     managerFn = { mp =>
       require(node.uRatio == 1)

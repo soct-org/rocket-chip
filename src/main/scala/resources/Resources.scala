@@ -369,7 +369,8 @@ trait BindingScope {
       case Some(Seq(ResourceMapping(addr, delta, perm))) => mapChildren(offset + delta)
       // multiple ranges + children -> don't know how to handle this
       case x => {
-        require(false, s"Unexpected value in ranges key: ${x}"); Nil
+        require(false, s"Unexpected value in ranges key: ${x}");
+        Nil
       }
     }
     addresses ++ childAddresses

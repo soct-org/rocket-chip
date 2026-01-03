@@ -1384,10 +1384,12 @@ class CSRFile(
 
     if (usingFPU) {
       when(decoded_addr(CSRs.fflags)) {
-        set_fs_dirty := true.B; reg_fflags := wdata
+        set_fs_dirty := true.B;
+        reg_fflags := wdata
       }
       when(decoded_addr(CSRs.frm)) {
-        set_fs_dirty := true.B; reg_frm := wdata
+        set_fs_dirty := true.B;
+        reg_frm := wdata
       }
       when(decoded_addr(CSRs.fcsr)) {
         set_fs_dirty := true.B
@@ -1629,13 +1631,15 @@ class CSRFile(
         }
       }
     }
-    reg_mcontext.foreach { r => when(decoded_addr(CSRs.mcontext)) {
-      r := wdata
+    reg_mcontext.foreach { r =>
+      when(decoded_addr(CSRs.mcontext)) {
+        r := wdata
+      }
     }
-    }
-    reg_scontext.foreach { r => when(decoded_addr(CSRs.scontext)) {
-      r := wdata
-    }
+    reg_scontext.foreach { r =>
+      when(decoded_addr(CSRs.scontext)) {
+        r := wdata
+      }
     }
     if (reg_pmp.nonEmpty) for (((pmp, next), i) <- (reg_pmp zip (reg_pmp.tail :+ reg_pmp.last)).zipWithIndex) {
       require(xLen % pmp.cfg.getWidth == 0)
@@ -1669,13 +1673,16 @@ class CSRFile(
     }
     if (usingVector) {
       when(decoded_addr(CSRs.vstart)) {
-        set_vs_dirty := true.B; reg_vstart.get := wdata
+        set_vs_dirty := true.B;
+        reg_vstart.get := wdata
       }
       when(decoded_addr(CSRs.vxrm)) {
-        set_vs_dirty := true.B; reg_vxrm.get := wdata
+        set_vs_dirty := true.B;
+        reg_vxrm.get := wdata
       }
       when(decoded_addr(CSRs.vxsat)) {
-        set_vs_dirty := true.B; reg_vxsat.get := wdata
+        set_vs_dirty := true.B;
+        reg_vxsat.get := wdata
       }
       when(decoded_addr(CSRs.vcsr)) {
         set_vs_dirty := true.B

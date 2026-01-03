@@ -41,7 +41,8 @@ object RegReadFn {
 
   // read from a ReadyValidIO (only safe if there is a consistent source of data)
   implicit def apply(x: ReadyValidIO[UInt]): RegReadFn = RegReadFn(ready => {
-    x.ready := ready; (x.valid, x.bits)
+    x.ready := ready;
+    (x.valid, x.bits)
   })
 
   // read from a register
@@ -82,14 +83,17 @@ object RegWriteFn {
   // write to a DecoupledIO (only safe if there is a consistent sink draining data)
   // NOTE: this is not an IrrevocableIO (even on TL2) because other fields could cause a lowered valid
   implicit def apply(x: DecoupledIO[UInt]): RegWriteFn = RegWriteFn((valid, data) => {
-    x.valid := valid; x.bits := data; x.ready
+    x.valid := valid;
+    x.bits := data;
+    x.ready
   })
 
   // updates a register (or adds a mux to a wire)
   implicit def apply(x: UInt): RegWriteFn = RegWriteFn((valid, data) => {
     when(valid) {
       x := data
-    }; true.B
+    };
+    true.B
   })
 
   // noop
@@ -161,7 +165,8 @@ object RegField {
   // Setting takes priority over clearing.
   def w1ToClear(n: Int, reg: UInt, set: UInt, desc: Option[RegFieldDesc] = None): RegField =
     RegField(n, reg, RegWriteFn((valid, data) => {
-      reg := (~((~reg) | Mux(valid, data, 0.U))) | set; true.B
+      reg := (~((~reg) | Mux(valid, data, 0.U))) | set;
+      true.B
     }),
       desc.map {
         _.copy(access = RegFieldAccessType.RW, wrType = Some(RegFieldWrType.ONE_TO_CLEAR), volatile = true)

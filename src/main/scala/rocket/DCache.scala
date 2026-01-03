@@ -1196,9 +1196,10 @@ class DCacheModule(outer: DCache) extends HellaCacheModule(outer) {
       io.errors.correctable.foreach { c =>
         c.valid := metaArb.io.in(1).valid || data_error
         c.bits := error_addr
-        io.errors.uncorrectable.foreach { u => when(u.valid) {
-          c.valid := false.B
-        }
+        io.errors.uncorrectable.foreach { u =>
+          when(u.valid) {
+            c.valid := false.B
+          }
         }
       }
       io.errors.bus.valid := tl_out.d.fire && (tl_out.d.bits.denied || tl_out.d.bits.corrupt)
