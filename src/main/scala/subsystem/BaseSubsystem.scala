@@ -80,38 +80,97 @@ object DetermineTopLevelResetType {
 }
 
 /**
- * Concrete attachment points for PRCI-related signals.
- * These aren't actually very configurable, yet.
+ * Some platforms (FPGA top-levels, simulation harnesses, or
+ * externally-managed SoCs) require the subsystem's clock groups
+ * to be driven from top-level IO rather than generated internally.
+ *
+ * When SubsystemDriveClockGroupsFromIO is enabled, we expose each
+ * clock group as an IO port so that the environment (board, testbench,
+ * or chip top) owns clock generation and reset sequencing.
+ *
+ * When disabled, clock groups are expected to be sourced internally
+ * by PRCI nodes (PLLs, dividers, clock muxes, etc.).
  */
 trait HasConfigurablePRCILocations {
   this: HasPRCILocations =>
-  val ibus = LazyModule(new InterruptBusWrapper)
+
+  // Interrupt bus is always present; unrelated to clocking policy
+  val ibus: InterruptBusWrapper = LazyModule(new InterruptBusWrapper)
+
+  // Identity node that represents the full set of clock groups
+  // used by the subsystem. Policy determines how these clocks
+  // are sourced; mechanisms below implement that policy.
   val allClockGroupsNode = ClockGroupIdentityNode()
-  val io_clocks: Option[ModuleValue[RecordMap[ClockBundle]]] = if (p(SubsystemDriveClockGroupsFromIO)) {
+
+
+  val io_clocks: Option[ModuleValue[RecordMap[ClockBundle]]] =
+    if (p(SubsystemDriveClockGroupsFromIO)) {
+      Some(buildClockGroupIO())
+    } else {
+      None
+    }
+
+  /**
+   * This method implements the policy of "drive clock groups from IO".
+   * It does so by:
+   *  1. Creating a ClockGroupSourceNode that represents externally-supplied clocks.
+   *     2. Aggregating those clocks so they participate in the unified clock group graph.
+   *     3. Materializing IO ports that directly drive the internal ClockBundle instances.
+   *
+   * No clocking decisions are made here; this is purely a structural
+   * realization of the policy selected above.
+   */
+  private def buildClockGroupIO(): ModuleValue[RecordMap[ClockBundle]] = {
     val aggregator = ClockGroupAggregator()
     val source = ClockGroupSourceNode(Seq(ClockGroupSourceParameters()))
+
+    // Connect externally-driven clock groups into the global clock
+    // group graph so downstream consumers see no distinction between
+    // internal and IO-sourced clocks.
     allClockGroupsNode :*= aggregator := source
-    Some(InModuleBody {
-      val elements: Seq[(String, ClockBundle)] = source.out.flatMap(_._1.member.elements)
-      val io = IO(Flipped(RecordMap(elements.map { case (name, data) =>
-        val port: ClockBundle = p(SubsystemResetSchemeKey) match {
-          case ResetSynchronous | ResetSynchronousFull =>
-            new ClockBundle(params = data.params, resetType = Some(() => Bool()))
-          case ResetAsynchronous | ResetAsynchronousFull =>
-            new ClockBundle(params = data.params, resetType = Some(() => AsyncReset()))
-        }
-        name -> port
-      }: _*)))
-      elements.foreach { case (name, data) => io(name).foreach {
-        data := _
+
+    InModuleBody {
+      val elements = source.out.flatMap { case (bundle, _) =>
+        bundle.member.elements
       }
+      val io = clockGroupIO(elements)
+
+      // Mechanically wire each IO clock bundle to its corresponding
+      // internal clock group member.
+      elements.foreach { case (name, data) =>
+        io(name).foreach {
+          data := _
+        }
       }
       io
-    })
-  } else {
-    None
+    }
+  }
+
+  /**
+   * Construct IO ports for each clock group.
+   *
+   * The reset type of each clock bundle is determined by the
+   * subsystem-wide reset scheme. This ensures that externally-driven
+   * clocks obey the same reset semantics as internally-generated ones.
+   */
+  private def clockGroupIO(elements: Seq[(String, ClockBundle)]): RecordMap[ClockBundle] = {
+
+    val resetType = p(SubsystemResetSchemeKey) match {
+      case ResetSynchronous | ResetSynchronousFull =>
+        () => Bool()
+      case ResetAsynchronous | ResetAsynchronousFull =>
+        () => AsyncReset()
+    }
+
+    IO(Flipped(RecordMap(elements.map { case (name, data) =>
+      name -> new ClockBundle(
+        params = data.params,
+        resetType = Some(resetType)
+      )
+    }: _*)))
   }
 }
+
 
 /** Look up the topology configuration for the TL buses located within this layer of the hierarchy */
 trait HasConfigurableTLNetworkTopology {
