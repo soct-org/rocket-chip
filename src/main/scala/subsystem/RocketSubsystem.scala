@@ -27,7 +27,7 @@ case class RocketTileAttachParams(
 }
 
 trait HasRocketTiles {
-  this: BaseSubsystem with InstantiatesHierarchicalElements =>
+  this: InstantiatesHierarchicalElements =>
   val rocketTiles = totalTiles.values.collect { case r: RocketTile => r }
 
   def coreMonitorBundles = (rocketTiles map { t =>
@@ -35,22 +35,4 @@ trait HasRocketTiles {
   }).toList
 }
 
-class RocketSubsystem(implicit p: Parameters) extends BaseSubsystem
-  with InstantiatesHierarchicalElements
-  with HasTileNotificationSinks
-  with HasTileInputConstants
-  with CanHavePeripheryCLINT
-  with CanHavePeripheryPLIC
-  with HasPeripheryDebug
-  with HasHierarchicalElementsRootContext
-  with HasHierarchicalElements
-  with HasCoreMonitorBundles
-  with HasRocketTiles {
-  override lazy val module = new RocketSubsystemModuleImp(this)
-}
-
-class RocketSubsystemModuleImp[+L <: RocketSubsystem](_outer: L) extends BaseSubsystemModuleImp(_outer)
-  with HasHierarchicalElementsRootContextModuleImp {
-  override lazy val outer = _outer
-}
 

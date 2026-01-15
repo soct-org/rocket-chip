@@ -5,20 +5,17 @@ package freechips.rocketchip.devices.tilelink
 import chisel3._
 import chisel3.experimental._
 import chisel3.util._
-
 import org.chipsalliance.cde.config._
 import org.chipsalliance.diplomacy.lazymodule._
-
-import freechips.rocketchip.diplomacy.{AddressSet}
+import freechips.rocketchip.diplomacy.AddressSet
 import freechips.rocketchip.resources.{Description, Resource, ResourceBinding, ResourceBindings, ResourceInt, SimpleDevice}
 import freechips.rocketchip.interrupts.{IntNexusNode, IntSinkParameters, IntSinkPortParameters, IntSourceParameters, IntSourcePortParameters}
 import freechips.rocketchip.regmapper.{RegField, RegFieldDesc, RegFieldRdAction, RegFieldWrType, RegReadFn, RegWriteFn}
-import freechips.rocketchip.subsystem.{BaseSubsystem, CBUS, TLBusWrapperLocation}
+import freechips.rocketchip.subsystem.{CBUS, HasTileLinkLocations, TLBusWrapperLocation}
 import freechips.rocketchip.tilelink.{TLFragmenter, TLRegisterNode}
 import freechips.rocketchip.util.{MuxT, property}
 
 import scala.math.min
-
 import freechips.rocketchip.util.UIntToAugmentedUInt
 import freechips.rocketchip.util.SeqToAugmentedSeq
 
@@ -389,7 +386,7 @@ class PLICFanIn(nDevices: Int, prioBits: Int) extends Module {
 
 /** Trait that will connect a PLIC to a subsystem */
 trait CanHavePeripheryPLIC {
-  this: BaseSubsystem =>
+  this: HasTileLinkLocations =>
   val (plicOpt, plicDomainOpt) = p(PLICKey).map { params =>
     val tlbus = locateTLBusWrapper(p(PLICAttachKey).slaveWhere)
     val plicDomainWrapper = tlbus.generateSynchronousDomain("PLIC").suggestName("plic_domain")

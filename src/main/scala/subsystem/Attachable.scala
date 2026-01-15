@@ -23,7 +23,7 @@ trait LazyScopeWithParameters extends LazyScope {
   implicit val p: Parameters
 }
 
-/** Layers of hierarchy with this trait contain attachment points for neworks of power, clock, reset, and interrupt resources */
+/** Layers of hierarchy with this trait contain attachment points for networks of power, clock, reset, and interrupt resources */
 trait HasPRCILocations extends LazyScopeWithParameters {
   this: LazyModule =>
   val allClockGroupsNode: ClockGroupNode

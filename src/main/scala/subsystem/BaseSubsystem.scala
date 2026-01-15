@@ -8,7 +8,7 @@ import org.chipsalliance.cde.config._
 import org.chipsalliance.diplomacy.lazymodule._
 import freechips.rocketchip.diplomacy.AddressRange
 import freechips.rocketchip.resources.{AddressMapEntry, BindingScope, DTB, DTS, DTSCompat, DTSModel, DTSTimebase, JSON, Resource, ResourceAnchors, ResourceBinding, ResourceInt, ResourceString}
-import freechips.rocketchip.prci.{ClockBundle, ClockGroupAggregator, ClockGroupIdentityNode, ClockGroupSourceNode, ClockGroupSourceParameters}
+import freechips.rocketchip.prci.{ClockBundle, ClockGroupAggregator, ClockGroupIdentityNode, ClockGroupSourceNode, ClockGroupSourceParameters, ClockSinkDomain}
 import freechips.rocketchip.tilelink.TLBusWrapper
 import freechips.rocketchip.util.{ElaborationArtefacts, Location, PlusArgArtefacts, RecordMap}
 
@@ -45,11 +45,6 @@ trait HasDTSImp[+L <: HasDTS] {
   ElaborationArtefacts.add("json", dtsLM.json)
   println(dtsLM.dts)
 }
-
-/** BareSubsystem is the root class for creating a subsystem */
-abstract class BareSubsystem(implicit p: Parameters) extends LazyModule
-
-abstract class BareSubsystemModuleImp[+L <: BareSubsystem](_outer: L) extends LazyRawModuleImp(_outer)
 
 trait SubsystemResetScheme
 
@@ -95,12 +90,12 @@ trait HasConfigurablePRCILocations {
   this: HasPRCILocations =>
 
   // Interrupt bus is always present; unrelated to clocking policy
-  val ibus: InterruptBusWrapper = LazyModule(new InterruptBusWrapper)
+  lazy val ibus: InterruptBusWrapper = LazyModule(new InterruptBusWrapper)
 
   // Identity node that represents the full set of clock groups
   // used by the subsystem. Policy determines how these clocks
   // are sourced; mechanisms below implement that policy.
-  val allClockGroupsNode = ClockGroupIdentityNode()
+  lazy val allClockGroupsNode = ClockGroupIdentityNode()
 
 
   val io_clocks: Option[ModuleValue[RecordMap[ClockBundle]]] =
@@ -186,85 +181,4 @@ trait HasConfigurableTLNetworkTopology {
 
   // This is used lazily at DTS binding time to get a view of the network
   lazy val topManagers = viewpointBus.unifyManagers
-}
-
-/** Base Subsystem class with no peripheral devices, ports or cores added yet */
-abstract class BaseSubsystem(val location: HierarchicalLocation = InSubsystem)
-                            (implicit p: Parameters)
-  extends BareSubsystem
-    with HasDTS
-    with Attachable
-    with HasConfigurablePRCILocations
-    with HasConfigurableTLNetworkTopology {
-  override val module: BaseSubsystemModuleImp[BaseSubsystem]
-
-  val busContextName = "subsystem"
-
-  viewpointBus.clockGroupNode := allClockGroupsNode
-
-  // TODO: Preserve legacy implicit-clock behavior for IBUS for now. If binding
-  //       a PLIC to the CBUS, ensure it is synchronously coupled to the SBUS.
-  ibus.clockNode := viewpointBus.fixedClockNode
-
-  // Collect information for use in DTS
-  ResourceBinding {
-    val managers = topManagers
-    val max = managers.flatMap(_.address).map(_.max).max
-    val width = ResourceInt((log2Ceil(max) + 31) / 32)
-    val model = p(DTSModel)
-    val compat = p(DTSCompat)
-    var hertz = p(DTSTimebase) // add for timebase-frequency
-    val devCompat = (model +: compat).map(s => ResourceString(s + "-dev"))
-    val socCompat = (model +: compat).map(s => ResourceString(s + "-soc"))
-    devCompat.foreach {
-      Resource(ResourceAnchors.root, "compat").bind(_)
-    }
-    socCompat.foreach {
-      Resource(ResourceAnchors.soc, "compat").bind(_)
-    }
-    Resource(ResourceAnchors.root, "model").bind(ResourceString(model))
-    Resource(ResourceAnchors.root, "width").bind(width)
-    Resource(ResourceAnchors.soc, "width").bind(width)
-    Resource(ResourceAnchors.cpus, "width").bind(ResourceInt(1))
-    Resource(ResourceAnchors.cpus, "hertz").bind(ResourceInt(hertz))
-
-    managers.foreach { case manager =>
-      val value = manager.toResource
-      manager.resources.foreach { case resource =>
-        resource.bind(value)
-      }
-    }
-  }
-}
-
-
-abstract class BaseSubsystemModuleImp[+L <: BaseSubsystem](_outer: L) extends BareSubsystemModuleImp(_outer) with HasDTSImp[L] {
-  def dtsLM: L = _outer
-
-  private val mapping: Seq[AddressMapEntry] = {
-    dtsLM.collectResourceAddresses.groupBy(_._2).toList.flatMap { case (key, seq) =>
-      AddressRange.fromSets(key.address).map { r => AddressMapEntry(r, key.permissions, seq.map(_._1)) }
-    }.sortBy(_.range)
-  }
-
-  println("Generated Address Map")
-  mapping.foreach(entry => println(entry.toString((dtsLM.tlBusWrapperLocationMap(p(TLManagerViewpointLocated(dtsLM.location))).busView.bundle.addressBits - 1) / 4 + 1)))
-  println("")
-
-  ElaborationArtefacts.add("memmap.json", s"""{"mapping":[${mapping.map(_.toJSON).mkString(",")}]}""")
-
-  // Confirm that all of memory was described by DTS
-  private val dtsRanges = AddressRange.unify(mapping.map(_.range))
-  private val allRanges = AddressRange.unify(dtsLM.topManagers.flatMap { m => AddressRange.fromSets(m.address) })
-
-  if (dtsRanges != allRanges) {
-    println("Address map described by DTS differs from physical implementation:")
-    AddressRange.subtract(allRanges, dtsRanges).foreach { case r =>
-      println(s"\texists, but undescribed by DTS: ${r}")
-    }
-    AddressRange.subtract(dtsRanges, allRanges).foreach { case r =>
-      println(s"\tdoes not exist, but described by DTS: ${r}")
-    }
-    println("")
-  }
 }

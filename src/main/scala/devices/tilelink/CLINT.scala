@@ -4,15 +4,13 @@ package freechips.rocketchip.devices.tilelink
 
 import chisel3._
 import chisel3.util._
-
 import org.chipsalliance.cde.config._
 import org.chipsalliance.diplomacy.lazymodule._
-
-import freechips.rocketchip.diplomacy.{AddressSet}
+import freechips.rocketchip.diplomacy.AddressSet
 import freechips.rocketchip.resources.{Resource, SimpleDevice}
 import freechips.rocketchip.interrupts.{IntNexusNode, IntSinkParameters, IntSinkPortParameters, IntSourceParameters, IntSourcePortParameters}
 import freechips.rocketchip.regmapper.{RegField, RegFieldDesc, RegFieldGroup}
-import freechips.rocketchip.subsystem.{BaseSubsystem, CBUS, TLBusWrapperLocation}
+import freechips.rocketchip.subsystem.{CBUS, HasTileLinkLocations, TLBusWrapperLocation}
 import freechips.rocketchip.tilelink.{TLFragmenter, TLRegisterNode}
 
 object CLINTConsts {
@@ -119,7 +117,7 @@ class CLINT(params: CLINTParams, beatBytes: Int)(implicit p: Parameters) extends
 
 /** Trait that will connect a CLINT to a subsystem */
 trait CanHavePeripheryCLINT {
-  this: BaseSubsystem =>
+  this: HasTileLinkLocations =>
   val (clintOpt, clintDomainOpt, clintTickOpt) = p(CLINTKey).map { params =>
     val tlbus = locateTLBusWrapper(p(CLINTAttachKey).slaveWhere)
     val clintDomainWrapper = tlbus.generateSynchronousDomain("CLINT").suggestName("clint_domain")

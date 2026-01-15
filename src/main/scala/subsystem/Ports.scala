@@ -51,11 +51,11 @@ case object ExtBus extends Field[Option[MasterPortParams]](None)
 
 case object ExtIn extends Field[Option[SlavePortParams]](None)
 
-///// The following traits add ports to the sytem, in some cases converting to different interconnect standards
+///// The following traits add ports to the system, in some cases converting to different interconnect standards
 
 /** Adds a port to the system intended to master an AXI4 DRAM controller. */
 trait CanHaveMasterAXI4MemPort {
-  this: BaseSubsystem =>
+  this: HasConfigurableTLNetworkTopology with HasTileLinkLocations =>
   private val memPortParamsOpt = p(ExtMem)
   private val portName = "axi4"
   private val device = new MemoryDevice
@@ -80,7 +80,7 @@ trait CanHaveMasterAXI4MemPort {
     }
   }).toList.flatten)
 
-  for (i <- 0 until memAXI4Node.portParams.size) {
+  memAXI4Node.portParams.indices.foreach { _ =>
     val mem_bypass_xbar = mbus {
       TLXbar()
     }
@@ -132,7 +132,7 @@ trait CanHaveMasterAXI4MemPort {
 
 /** Adds a AXI4 port to the system intended to master an MMIO device bus */
 trait CanHaveMasterAXI4MMIOPort {
-  this: BaseSubsystem =>
+  this: HasConfigurableTLNetworkTopology with HasTileLinkLocations =>
   private val mmioPortParamsOpt = p(ExtBus)
   private val portName = "mmio_port_axi4"
   private val device = new SimpleBus(portName.kebab, Nil)
@@ -168,7 +168,7 @@ trait CanHaveMasterAXI4MMIOPort {
 
 /** Adds an AXI4 port to the system intended to be a slave on an MMIO device bus */
 trait CanHaveSlaveAXI4Port {
-  this: BaseSubsystem =>
+  this: HasConfigurableTLNetworkTopology with HasTileLinkLocations =>
   private val slavePortParamsOpt = p(ExtIn)
   private val portName = "slave_port_axi4"
   private val fifoBits = 1
@@ -202,7 +202,7 @@ trait CanHaveSlaveAXI4Port {
 
 /** Adds a TileLink port to the system intended to master an MMIO device bus */
 trait CanHaveMasterTLMMIOPort {
-  this: BaseSubsystem =>
+  this: HasConfigurableTLNetworkTopology with HasTileLinkLocations =>
   private val mmioPortParamsOpt = p(ExtBus)
   private val portName = "mmio_port_tl"
   private val device = new SimpleBus(portName.kebab, Nil)
@@ -239,7 +239,7 @@ trait CanHaveMasterTLMMIOPort {
  * NOTE: this port is NOT allowed to issue Acquires.
  */
 trait CanHaveSlaveTLPort {
-  this: BaseSubsystem =>
+  this: HasConfigurableTLNetworkTopology with HasTileLinkLocations =>
   private val slavePortParamsOpt = p(ExtIn)
   private val portName = "slave_port_tl"
 

@@ -8,10 +8,9 @@ import chisel3.util._
 import org.chipsalliance.cde.config._
 import org.chipsalliance.diplomacy.lazymodule._
 import freechips.rocketchip.amba.apb.{APBBundle, APBBundleParameters, APBMasterNode, APBMasterParameters, APBMasterPortParameters}
-import freechips.rocketchip.interrupts.{IntSyncXbar, NullIntSyncSource}
 import freechips.rocketchip.jtag.JTAGIO
 import freechips.rocketchip.prci.{ClockSinkNode, ClockSinkParameters}
-import freechips.rocketchip.subsystem.{BaseSubsystem, CBUS, DetermineTopLevelResetType, FBUS, ResetSynchronous, SubsystemResetSchemeKey, TLBusWrapperLocation}
+import freechips.rocketchip.subsystem.{CBUS, DetermineTopLevelResetType, FBUS, HasConfigurableTLNetworkTopology, HasTileLinkLocations, ResetSynchronous, SubsystemResetSchemeKey, TLBusWrapperLocation}
 import freechips.rocketchip.tilelink.{TLFragmenter, TLWidthWidget}
 import freechips.rocketchip.util.{AsyncResetSynchronizerShiftReg, CanHavePSDTestModeIO, ClockGate, PSDTestMode, PlusArg, ResetSynchronizerShiftReg}
 import freechips.rocketchip.util.BooleanToAugmentedBoolean
@@ -73,13 +72,13 @@ class ResetCtrlIO(val nComponents: Int)(implicit val p: Parameters) extends Bund
   val hartIsInReset = Input(Vec(nComponents, Bool()))
 }
 
-/** Either adds a JTAG DTM to system, and exports a JTAG interface,
+/**
+ * Either adds a JTAG DTM to system, and exports a JTAG interface,
  * or exports the Debug Module Interface (DMI), or exports and hooks up APB,
  * based on a global parameter.
  */
-
 trait HasPeripheryDebug {
-  this: BaseSubsystem =>
+  this: HasTileLinkLocations =>
   private lazy val tlbus = locateTLBusWrapper(p(ExportDebug).slaveWhere)
 
   lazy val debugCustomXbarOpt = p(DebugModuleKey).map(params => LazyModule(new DebugCustomXbar(outputRequiresInput = false)))

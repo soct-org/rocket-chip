@@ -41,14 +41,13 @@ case object NExtTopInterrupts extends Field[Int](0)
  * However, it should not be used directly; instead one of the below
  * synchronization wiring child traits should be used.
  */
-abstract trait HasExtInterrupts {
-  this: BaseSubsystem =>
+trait HasExtInterrupts {
+  this: LazyScopeWithParameters =>
   private val device = new Device with DeviceInterrupts {
     def describe(resources: ResourceBindings): Description = {
       Description("soc/external-interrupts", describeInterrupts(resources))
     }
   }
-
   val nExtInterrupts = p(NExtTopInterrupts)
   val extInterrupts = IntSourceNode(IntSourcePortSimple(num = nExtInterrupts, resources = device.int))
 }
@@ -57,7 +56,7 @@ abstract trait HasExtInterrupts {
  * already been synchronized to the Periphery (PLIC) Clock.
  */
 trait HasAsyncExtInterrupts extends HasExtInterrupts {
-  this: BaseSubsystem =>
+  this: HasPRCILocations =>
   if (nExtInterrupts > 0) {
     ibus {
       ibus.fromAsync := extInterrupts
@@ -69,7 +68,7 @@ trait HasAsyncExtInterrupts extends HasExtInterrupts {
  * to the Periphery (PLIC) Clock.
  */
 trait HasSyncExtInterrupts extends HasExtInterrupts {
-  this: BaseSubsystem =>
+  this: HasPRCILocations =>
   if (nExtInterrupts > 0) {
     ibus {
       ibus.fromSync := extInterrupts

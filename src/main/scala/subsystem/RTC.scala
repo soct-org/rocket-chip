@@ -11,16 +11,13 @@ import freechips.rocketchip.resources.DTSTimebase
 import freechips.rocketchip.devices.tilelink.{CLINTAttachKey, CanHavePeripheryCLINT}
 
 trait HasRTCModuleImp extends LazyRawModuleImp {
-  val outer: BaseSubsystem with CanHavePeripheryCLINT
-
+  val outer: HasTileLinkLocations with CanHavePeripheryCLINT
   // Use the static period to toggle the RTC
-  outer.clintDomainOpt.map { domain => {
+  outer.clintDomainOpt.foreach { domain =>
     val bus = outer.locateTLBusWrapper(p(CLINTAttachKey).slaveWhere)
     val busFreq = bus.dtsFrequency.get
     val rtcFreq = outer.p(DTSTimebase)
     val internalPeriod: BigInt = busFreq / rtcFreq
-
-
     // check whether pbusFreq >= rtcFreq
     require(internalPeriod > 0)
     // check wehther the integer division is within 5% of the real division
@@ -32,6 +29,5 @@ trait HasRTCModuleImp extends LazyRawModuleImp {
         _ := int_rtc_tick
       }
     }
-  }
   }
 }
