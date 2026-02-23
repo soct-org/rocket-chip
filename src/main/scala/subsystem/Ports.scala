@@ -164,6 +164,13 @@ trait CanHaveMasterAXI4MMIOPort {
   val mmio_axi4 = InModuleBody {
     mmioAXI4Node.makeIOs()
   }
+
+  /**
+   * Returns the SimpleBus that is attached to the AXI4 MMIO port, if it exists. This can be used by traits that mix in
+   * CanHaveMasterAXI4MMIOPort to attach devices to the MMIO bus.
+   * @return Some(SimpleBus) if the MMIO port is enabled, None otherwise
+   */
+  def mmioBusDevice: Option[SimpleBus] = mmioPortParamsOpt.map(_ => device)
 }
 
 /** Adds an AXI4 port to the system intended to be a slave on an MMIO device bus */
