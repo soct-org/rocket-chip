@@ -8,9 +8,11 @@ import org.chipsalliance.cde.config._
 import org.chipsalliance.diplomacy.lazymodule._
 import freechips.rocketchip.diplomacy.AddressRange
 import freechips.rocketchip.resources.{AddressMapEntry, BindingScope, DTB, DTS, DTSCompat, DTSModel, DTSTimebase, JSON, Resource, ResourceAnchors, ResourceBinding, ResourceInt, ResourceString}
-import freechips.rocketchip.prci.{ClockBundle, ClockGroupAggregator, ClockGroupIdentityNode, ClockGroupSourceNode, ClockGroupSourceParameters, ClockSinkDomain}
+import freechips.rocketchip.prci.{ClockBundle, ClockEdgeParameters, ClockGroupAggregator, ClockGroupEdgeParameters, ClockGroupIdentityNode, ClockGroupSourceNode, ClockGroupSourceParameters, ClockSinkDomain, ClockSinkParameters}
 import freechips.rocketchip.tilelink.TLBusWrapper
 import freechips.rocketchip.util.{ElaborationArtefacts, Location, PlusArgArtefacts, RecordMap}
+
+import scala.collection.mutable
 
 case object SubsystemDriveClockGroupsFromIO extends Field[Boolean](true)
 
@@ -85,19 +87,28 @@ object DetermineTopLevelResetType {
  *
  * When disabled, clock groups are expected to be sourced internally
  * by PRCI nodes (PLLs, dividers, clock muxes, etc.).
+ *
  */
 trait HasConfigurablePRCILocations {
-  this: HasPRCILocations =>
+  this: HasTileLinkLocations =>
 
-  // Interrupt bus is always present; unrelated to clocking policy
   lazy val ibus: InterruptBusWrapper = LazyModule(new InterruptBusWrapper)
 
-  // Identity node that represents the full set of clock groups
-  // used by the subsystem. Policy determines how these clocks
-  // are sourced; mechanisms below implement that policy.
+
+  /**
+   * Identity node that represents the full set of clock groups used by the subsystem.
+   */
   lazy val allClockGroupsNode = ClockGroupIdentityNode()
 
+  /**
+   * Source node that represents externally-supplied clock groups when `SubsystemDriveClockGroupsFromIO` is enabled.
+   */
+  val clockSource = ClockGroupSourceNode(Seq(ClockGroupSourceParameters()))
 
+  /**
+   * IO ports for externally-driven clock groups, if `SubsystemDriveClockGroupsFromIO` is enabled.
+   * Each port is a `ClockBundle` that directly drives the internal clock group graph through `allClockGroupsNode`.
+   */
   val io_clocks: Option[ModuleValue[RecordMap[ClockBundle]]] =
     if (p(SubsystemDriveClockGroupsFromIO)) {
       Some(buildClockGroupIO())
@@ -105,27 +116,69 @@ trait HasConfigurablePRCILocations {
       None
     }
 
-  /**
-   * This method implements the policy of "drive clock groups from IO".
-   * It does so by:
-   *  1. Creating a ClockGroupSourceNode that represents externally-supplied clocks.
-   *     2. Aggregating those clocks so they participate in the unified clock group graph.
-   *     3. Materializing IO ports that directly drive the internal ClockBundle instances.
-   *
-   * No clocking decisions are made here; this is purely a structural
-   * realization of the policy selected above.
-   */
+  case class BusInfo(idx: Int, name: String, member: String)
+
+  case class IOClockPort(name: String, sink: ClockEdgeParameters)
+
+  private lazy val clockBusPaths: Map[IOClockPort, IndexedSeq[BusInfo]] = {
+    require(clockSource.out.size == 1, "ClockGroupSourceNode should have exactly one output port")
+    val sourceEdge: ClockGroupEdgeParameters = clockSource.out.head._2
+
+    // IO port member keys, indexed in the same order as sourceEdge.sink.members.
+    // These become the field names in the io_clocks RecordMap (e.g. "aggregator_0").
+    val ioPortNames: IndexedSeq[(String, ClockEdgeParameters)] = sourceEdge.members.toIndexedSeq
+
+    // The ClockSinkParameters object for each IO port, by position.
+    // These are the SAME Scala objects that each downstream clock sink
+    // (device / bus) registered — reference equality is safe for matching.
+    val ioClockSinkParams = sourceEdge.sink.members.toIndexedSeq
+    require(ioPortNames.size == ioClockSinkParams.size)
+
+    val busLocs = Seq[TLBusWrapperLocation](SBUS, COH, MBUS, CBUS, PBUS, FBUS)
+
+    val allMatches: Seq[BusInfo] =
+      for {
+        loc <- busLocs
+        bus <- tlBusWrapperLocationMap.get(loc).toSeq
+        // bus.clockGroupNode.in gives inward edges of the bus aggregator
+        // (edges from upstream clock providers: allClockGroupsNode or a
+        // parent bus when DriveClocksFromSBus is enabled).
+        (_, busEdge: ClockGroupEdgeParameters) <- bus.clockGroupNode.in
+        busMemberNames = busEdge.members.keys.toIndexedSeq
+        (busSink, busIdx) <- busEdge.sink.members.zipWithIndex
+        (ioSink, ioIdx) <- ioClockSinkParams.zipWithIndex
+        if ioSink eq busSink // Match the same ClockSinkParameters object by reference equality
+      } yield BusInfo(ioIdx, bus.name, busMemberNames(busIdx))
+
+    val busByIdx = allMatches.groupBy(_.idx)
+
+    val clockMapping = mutable.LinkedHashMap.empty[IOClockPort, IndexedSeq[BusInfo]]
+    ioPortNames.zipWithIndex.foreach { case ((name, edge), i: Int) =>
+      busByIdx.get(i) match {
+        case Some(busInfos) => clockMapping(IOClockPort(name, edge)) = busInfos.toIndexedSeq
+        case None => clockMapping(IOClockPort(name, edge)) = IndexedSeq.empty
+      }
+    }
+    clockMapping.toMap
+  }
+
+  def ioClockForBusLeaf(busLeaf: TLBusWrapperLocation): Option[IOClockPort] = {
+    // Check the last element in each of the bus paths to find which one matches the given bus leaf location, then return the corresponding IOClockPort.
+    clockBusPaths.collectFirst {
+      case (ioPort, busInfos) if busInfos.lastOption.exists(_.name == busLeaf.name) => ioPort
+    }
+  }
+
   private def buildClockGroupIO(): ModuleValue[RecordMap[ClockBundle]] = {
     val aggregator = ClockGroupAggregator()
-    val source = ClockGroupSourceNode(Seq(ClockGroupSourceParameters()))
 
     // Connect externally-driven clock groups into the global clock
     // group graph so downstream consumers see no distinction between
     // internal and IO-sourced clocks.
-    allClockGroupsNode :*= aggregator := source
+    allClockGroupsNode :*= aggregator := clockSource
 
     InModuleBody {
-      val elements = source.out.flatMap { case (bundle, _) =>
+      val elements = clockSource.out.flatMap { case (bundle, _) =>
         bundle.member.elements
       }
       val io = clockGroupIO(elements)
