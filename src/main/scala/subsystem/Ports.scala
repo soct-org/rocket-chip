@@ -3,32 +3,15 @@
 package freechips.rocketchip.subsystem
 
 import chisel3._
-
 import org.chipsalliance.cde.config._
 import org.chipsalliance.diplomacy._
 import org.chipsalliance.diplomacy.bundlebridge._
 import org.chipsalliance.diplomacy.lazymodule._
-
-import freechips.rocketchip.amba.axi4.{
-  AXI4SlaveNode, AXI4SlavePortParameters, AXI4SlaveParameters, AXI4UserYanker, AXI4Buffer,
-  AXI4Deinterleaver, AXI4IdIndexer, AXI4MasterNode, AXI4MasterPortParameters, AXI4ToTL,
-  AXI4Fragmenter, AXI4MasterParameters
-}
-import freechips.rocketchip.diplomacy.{
-  AddressSet, RegionType, TransferSizes, IdRange, BufferParams
-}
-import freechips.rocketchip.resources.{
-  MemoryDevice, SimpleBus
-}
-import freechips.rocketchip.tilelink.{
-  TLXbar, RegionReplicator, ReplicatedRegion, TLWidthWidget, TLFilter, TLToAXI4, TLBuffer,
-  TLFIFOFixer, TLSlavePortParameters, TLManagerNode, TLSlaveParameters, TLClientNode,
-  TLSourceShrinker, TLMasterParameters, TLMasterPortParameters
-}
+import freechips.rocketchip.amba.axi4.{AXI4Buffer, AXI4Deinterleaver, AXI4Fragmenter, AXI4IdIndexer, AXI4MasterNode, AXI4MasterParameters, AXI4MasterPortParameters, AXI4SlaveNode, AXI4SlaveParameters, AXI4SlavePortParameters, AXI4ToTL, AXI4UserYanker}
+import freechips.rocketchip.diplomacy.{AddressSet, BufferParams, IdRange, RegionType, TransferSizes}
+import freechips.rocketchip.resources.{MemoryDevice, SimpleBus}
+import freechips.rocketchip.tilelink.{RegionReplicator, ReplicatedRegion, TLBuffer, TLBusWrapper, TLClientNode, TLClockDomainCrossing, TLFIFOFixer, TLFilter, TLManagerNode, TLMasterParameters, TLMasterPortParameters, TLResetDomainCrossing, TLSlaveParameters, TLSlavePortParameters, TLSourceShrinker, TLToAXI4, TLWidthWidget, TLXbar}
 import freechips.rocketchip.util.StringToAugmentedString
-
-import freechips.rocketchip.tilelink.TLClockDomainCrossing
-import freechips.rocketchip.tilelink.TLResetDomainCrossing
 
 /** Specifies the size and width of external memory ports */
 case class MasterPortParams(
@@ -125,6 +108,8 @@ trait CanHaveMasterAXI4MemPort {
     }
   }
 
+  def memAXI4Bus: TLBusWrapper = mbus
+
   val mem_axi4 = InModuleBody {
     memAXI4Node.makeIOs()
   }
@@ -160,6 +145,8 @@ trait CanHaveMasterAXI4MMIOPort {
         := _)
     }
   }
+
+  def mmioAXI4Bus: TLBusWrapper = viewpointBus
 
   val mmio_axi4 = InModuleBody {
     mmioAXI4Node.makeIOs()
@@ -201,6 +188,8 @@ trait CanHaveSlaveAXI4Port {
         := l2FrontendAXI4Node)
     }
   }
+
+  def l2FrontendAXI4Bus: TLBusWrapper = fbus
 
   val l2_frontend_bus_axi4 = InModuleBody {
     l2FrontendAXI4Node.makeIOs()
