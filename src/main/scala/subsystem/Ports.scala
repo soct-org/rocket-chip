@@ -9,6 +9,7 @@ import org.chipsalliance.diplomacy.bundlebridge._
 import org.chipsalliance.diplomacy.lazymodule._
 import freechips.rocketchip.amba.axi4.{AXI4Buffer, AXI4Deinterleaver, AXI4Fragmenter, AXI4IdIndexer, AXI4MasterNode, AXI4MasterParameters, AXI4MasterPortParameters, AXI4SlaveNode, AXI4SlaveParameters, AXI4SlavePortParameters, AXI4ToTL, AXI4UserYanker}
 import freechips.rocketchip.diplomacy.{AddressSet, BufferParams, IdRange, RegionType, TransferSizes}
+import freechips.rocketchip.prci.ClockBundle
 import freechips.rocketchip.resources.{MemoryDevice, SimpleBus}
 import freechips.rocketchip.tilelink.{RegionReplicator, ReplicatedRegion, TLBuffer, TLBusWrapper, TLClientNode, TLClockDomainCrossing, TLFIFOFixer, TLFilter, TLManagerNode, TLMasterParameters, TLMasterPortParameters, TLResetDomainCrossing, TLSlaveParameters, TLSlavePortParameters, TLSourceShrinker, TLToAXI4, TLWidthWidget, TLXbar}
 import freechips.rocketchip.util.StringToAugmentedString
@@ -38,7 +39,7 @@ case object ExtIn extends Field[Option[SlavePortParams]](None)
 
 /** Adds a port to the system intended to master an AXI4 DRAM controller. */
 trait CanHaveMasterAXI4MemPort {
-  this: HasConfigurableTLNetworkTopology with HasTileLinkLocations =>
+  this: HasConfigurableTLNetworkTopology with HasTileLinkLocations with HasConfigurablePRCILocations =>
   private val memPortParamsOpt = p(ExtMem)
   private val portName = "axi4"
   private val device = new MemoryDevice
@@ -110,6 +111,9 @@ trait CanHaveMasterAXI4MemPort {
 
   def memAXI4Bus: TLBusWrapper = mbus
 
+  /** Returns the [[ClockBundle]] from [[io_clocks]] that drives the memory AXI4 port's bus, if one exists. */
+  def memAXI4ClockBundle: Option[ClockBundle] = clockBundleForBus(memAXI4Bus)
+
   val mem_axi4 = InModuleBody {
     memAXI4Node.makeIOs()
   }
@@ -117,7 +121,7 @@ trait CanHaveMasterAXI4MemPort {
 
 /** Adds a AXI4 port to the system intended to master an MMIO device bus */
 trait CanHaveMasterAXI4MMIOPort {
-  this: HasConfigurableTLNetworkTopology with HasTileLinkLocations =>
+  this: HasConfigurableTLNetworkTopology with HasTileLinkLocations with HasConfigurablePRCILocations =>
   private val mmioPortParamsOpt = p(ExtBus)
   private val portName = "mmio_port_axi4"
   private val device = new SimpleBus(portName.kebab, Nil)
@@ -147,6 +151,14 @@ trait CanHaveMasterAXI4MMIOPort {
   }
 
   def mmioAXI4Bus: TLBusWrapper = viewpointBus
+
+  /** Returns the [[ClockBundle]] from [[io_clocks]] that drives the MMIO AXI4 port's bus, if one exists.
+   *
+   * This is non-trivial because the MMIO AXI port is driven by the [[viewpointBus]], which may be
+   * one of several buses sharing the same clock domain. The lookup uses [[clockBundleForBus]] which
+   * searches the full [[busHierarchyByClock]] map to find the correct clock domain.
+   */
+  def mmioAXI4ClockBundle: Option[ClockBundle] = clockBundleForBus(mmioAXI4Bus)
 
   val mmio_axi4 = InModuleBody {
     mmioAXI4Node.makeIOs()
