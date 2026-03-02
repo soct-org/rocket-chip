@@ -134,9 +134,21 @@ trait HasConfigurablePRCILocations {
         val buses = mutable.LinkedHashSet.empty[TLBusWrapper]
 
         def connectsToSource(busInst: TLBusWrapper): Boolean = {
-          // get in edges of the bus and find which one matches this sink parameter
-          val busInEdges = busInst.clockGroupNode.in.map(_._2).flatMap(_.sink.members)
-          busInEdges.exists { busSink => busSink eq sourceForBus.sink }
+          // Use clockNode (the ClockGroupingNode / clockGroup.node) rather than
+          // clockGroupNode (the ClockGroupAggregator).  The aggregator aggregates
+          // clock-group requirements from *all* buses that are downstream in the
+          // clock hierarchy (e.g. cbus, pbus, mbus, tiles …), so its sink.members
+          // contains every ClockSinkParameters in the subsystem, which causes
+          // every IO clock source to match every bus that touches allClockGroupsNode.
+          //
+          // clockNode (ClockGroupingNode) only requests what *its own* downstream
+          // consumers need: concretely, just the fixedClockNode that drives this
+          // bus's own clock domain.  Its sink.members therefore contains exactly
+          // one ClockSinkParameters – the unique object created for this bus in its
+          // TLBusWrapper constructor.  Reference equality then correctly identifies
+          // the single IO clock source that drives this bus.
+          val busClockSinks = busInst.clockNode.in.map(_._2).flatMap(_.sink.members)
+          busClockSinks.exists { busSink => busSink eq sourceForBus.sink }
         }
 
         busTopos.foreach { topo =>
