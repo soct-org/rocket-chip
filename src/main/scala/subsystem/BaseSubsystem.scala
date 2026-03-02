@@ -118,23 +118,21 @@ trait HasConfigurablePRCILocations {
       None
     }
 
-  private type BusWithFreq = (TLBusWrapper, Option[BigInt])
-
   /**
    * A mapping of clock bundles from the [[clockSource]] to the set of TLBusWrappers and their corresponding frequencies (if specified) that are driven by each clock bundle.
    * Returns an empty map if [[SubsystemDriveClockGroupsFromIO]] is disabled.
    */
-  private lazy val busHierarchyByClock: Map[ClockBundle, Set[BusWithFreq]] =
-    clockSource.fold(Map.empty[ClockBundle, Set[BusWithFreq]]) { source =>
+  private lazy val busHierarchyByClock: Map[ClockBundle, Set[TLBusWrapper]] =
+    clockSource.fold(Map.empty[ClockBundle, Set[TLBusWrapper]]) { source =>
     val topoInSubsystem = p(TLNetworkTopologyLocated(InSubsystem))
     val busTopos: Seq[TLBusWrapperTopology] = topoInSubsystem.collect { case t: TLBusWrapperTopology => t }
 
-    val busHierMap = mutable.LinkedHashMap.empty[ClockBundle, mutable.LinkedHashSet[BusWithFreq]]
+    val busHierMap = mutable.LinkedHashMap.empty[ClockBundle, mutable.LinkedHashSet[TLBusWrapper]]
 
     source.out.foreach { case (_, sourceEdge) => // Should only be one iteration.
       sourceEdge.members.foreach { case (portName, sourceForBus) =>
         val clk = io_clocks.get.getWrappedValue.elements.getOrElse(portName, throw new RuntimeException(s"Clock bundle \"$portName\" not found in io_clocks RecordMap"))
-        val buses = mutable.LinkedHashSet.empty[BusWithFreq]
+        val buses = mutable.LinkedHashSet.empty[TLBusWrapper]
 
         def connectsToSource(busInst: TLBusWrapper): Boolean = {
           val busClockSinks = busInst.clockNode.in.map(_._2).flatMap(_.sink.members)
@@ -143,22 +141,9 @@ trait HasConfigurablePRCILocations {
 
         busTopos.foreach { topo =>
           topo.instantiations.foreach { case (loc, params) =>
-            val freqOpt = params match {
-              case CoherenceManagerWrapperParams(_, _, _, _, dtsFrequency) =>
-                dtsFrequency
-              case FrontBusParams(_, _, dtsFrequency, _, _) =>
-                dtsFrequency
-              case MemoryBusParams(_, _, dtsFrequency, _, _, _) =>
-                dtsFrequency
-              case PeripheryBusParams(_, _, _, dtsFrequency, _, _, _) =>
-                dtsFrequency
-              case SystemBusParams(_, _, _, dtsFrequency, _, _, _) =>
-                dtsFrequency
-              case _ => None
-            }
             val busInst = locateTLBusWrapper(loc)
             if (connectsToSource(busInst)) {
-              buses += ((busInst, freqOpt))
+              buses += busInst
             }
           }
         }
@@ -178,7 +163,7 @@ trait HasConfigurablePRCILocations {
    * or if the bus is not found in the clock hierarchy.
    */
   def clockBundleForBus(bus: TLBusWrapper): Option[ClockBundle] =
-    busHierarchyByClock.collectFirst { case (clk, buses) if buses.exists(_._1 eq bus) => clk }
+    busHierarchyByClock.collectFirst { case (clk, buses) if buses.contains(bus) => clk }
 
 
   /**
@@ -188,7 +173,7 @@ trait HasConfigurablePRCILocations {
    * including buses reachable through multi-branch clock hierarchies (e.g. mbus and pbus both driven by the sbus clock).
    * Returns [[None]] if [[SubsystemDriveClockGroupsFromIO]] is disabled or if the clock bundle is not found in the clock hierarchy.
    */
-  def busesForClockBundle(clk: ClockBundle): Option[Set[BusWithFreq]] =
+  def busesForClockBundle(clk: ClockBundle): Option[Set[TLBusWrapper]] =
     busHierarchyByClock.get(clk)
 
 
