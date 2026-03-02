@@ -118,59 +118,80 @@ trait HasConfigurablePRCILocations {
       None
     }
 
+  private type BusWithFreq = (TLBusWrapper, Option[BigInt])
+
   /**
-   * A mapping of clock bundles from the [[clockSource]] to the TLBusWrappers that are driven by those clock bundles, in hierarchical order from source to leaf (master to slave).
+   * A mapping of clock bundles from the [[clockSource]] to the set of TLBusWrappers and their corresponding frequencies (if specified) that are driven by each clock bundle.
+   * Returns an empty map if [[SubsystemDriveClockGroupsFromIO]] is disabled.
    */
-  lazy val busHierarchyByClock: Map[ClockBundle, Seq[TLBusWrapper]] = {
+  private lazy val busHierarchyByClock: Map[ClockBundle, Set[BusWithFreq]] =
+    clockSource.fold(Map.empty[ClockBundle, Set[BusWithFreq]]) { source =>
     val topoInSubsystem = p(TLNetworkTopologyLocated(InSubsystem))
     val busTopos: Seq[TLBusWrapperTopology] = topoInSubsystem.collect { case t: TLBusWrapperTopology => t }
 
-    val busHierMap = mutable.LinkedHashMap.empty[ClockBundle, Seq[TLBusWrapper]]
+    val busHierMap = mutable.LinkedHashMap.empty[ClockBundle, mutable.LinkedHashSet[BusWithFreq]]
 
-    clockSource.get.out.foreach { case (_, sourceEdge) => // Should only be one iteration.
+    source.out.foreach { case (_, sourceEdge) => // Should only be one iteration.
       sourceEdge.members.foreach { case (portName, sourceForBus) =>
         val clk = io_clocks.get.getWrappedValue.elements.getOrElse(portName, throw new RuntimeException(s"Clock bundle \"$portName\" not found in io_clocks RecordMap"))
-        val ordering = mutable.LinkedHashMap.empty[TLBusWrapper, mutable.LinkedHashSet[TLBusWrapper]]
+        val buses = mutable.LinkedHashSet.empty[BusWithFreq]
+
+        def connectsToSource(busInst: TLBusWrapper): Boolean = {
+          val busClockSinks = busInst.clockNode.in.map(_._2).flatMap(_.sink.members)
+          busClockSinks.exists { busSink => busSink eq sourceForBus.sink }
+        }
 
         busTopos.foreach { topo =>
-          def connectsToSource(busInst: TLBusWrapper): Boolean = {
-            // get in edges of the bus and find which one matches this sink parameter
-            val busInEdges = busInst.clockGroupNode.in.map(_._2).flatMap(_.sink.members)
-            busInEdges.exists { busSink => busSink eq sourceForBus.sink }
-          }
-
-          topo.connections.foreach { case (master, slave, _) =>
-            val Seq(mInst, sInst) = Seq(master, slave).map(locateTLBusWrapper)
-            if (connectsToSource(mInst) && connectsToSource(sInst)) {
-              ordering.getOrElseUpdate(mInst, mutable.LinkedHashSet.empty) += sInst
-            } else if (connectsToSource(mInst)) {
-              ordering.getOrElseUpdate(mInst, mutable.LinkedHashSet.empty)
+          topo.instantiations.foreach { case (loc, params) =>
+            val freqOpt = params match {
+              case CoherenceManagerWrapperParams(_, _, _, _, dtsFrequency) =>
+                dtsFrequency
+              case FrontBusParams(_, _, dtsFrequency, _, _) =>
+                dtsFrequency
+              case MemoryBusParams(_, _, dtsFrequency, _, _, _) =>
+                dtsFrequency
+              case PeripheryBusParams(_, _, _, dtsFrequency, _, _, _) =>
+                dtsFrequency
+              case SystemBusParams(_, _, _, dtsFrequency, _, _, _) =>
+                dtsFrequency
+              case _ => None
             }
-          }
-          topo.instantiations.foreach { case (loc, _) =>
             val busInst = locateTLBusWrapper(loc)
             if (connectsToSource(busInst)) {
-              ordering.getOrElseUpdate(busInst, mutable.LinkedHashSet.empty)
+              buses += ((busInst, freqOpt))
             }
           }
         }
 
-        // Find end (TLBusWrappers with no slave connections)
-        val leafs = ordering.filter { case (_, slaves) => slaves.isEmpty }.keys.toSeq
-        require(leafs.size == 1, s"Expected exactly one leaf bus in the topology, but found ${leafs.size} ")
-        val leaf = leafs.head
-
-        // Walk back from the leaf to the root to get the full path of TLBusWrappers from the source to the leaf
-        def walk(bus: TLBusWrapper): Seq[TLBusWrapper] = {
-          Seq(bus) ++ ordering.filter { case (_, slaves) => slaves.contains(bus) }.keys.toSeq.flatMap(walk)
-        }
-
-        val buses = walk(leaf).reverse // reverse to get the order from source to leaf
         busHierMap += (clk -> buses)
       }
     }
-    busHierMap.toMap
+    busHierMap.map { case (clk, busSet) => clk -> busSet.toSet }.toMap
   }
+
+  /**
+   * Returns the [[ClockBundle]] from [[io_clocks]] that drives the given [[TLBusWrapper]], if one exists.
+   *
+   * This can be used to find the clock port associated with any TL bus in the subsystem topology,
+   * including buses reachable through multi-branch clock hierarchies (e.g. mbus and pbus both
+   * driven by the sbus clock). Returns [[None]] if [[SubsystemDriveClockGroupsFromIO]] is disabled
+   * or if the bus is not found in the clock hierarchy.
+   */
+  def clockBundleForBus(bus: TLBusWrapper): Option[ClockBundle] =
+    busHierarchyByClock.collectFirst { case (clk, buses) if buses.exists(_._1 eq bus) => clk }
+
+
+  /**
+   * Returns the set of [[TLBusWrapper]]s driven by the given [[ClockBundle]], if any exist.
+   *
+   * This can be used to find all TL buses in the subsystem topology that are driven by a particular clock bundle,
+   * including buses reachable through multi-branch clock hierarchies (e.g. mbus and pbus both driven by the sbus clock).
+   * Returns [[None]] if [[SubsystemDriveClockGroupsFromIO]] is disabled or if the clock bundle is not found in the clock hierarchy.
+   */
+  def busesForClockBundle(clk: ClockBundle): Option[Set[BusWithFreq]] =
+    busHierarchyByClock.get(clk)
+
+
 
   private def buildClockGroupIO(): ModuleValue[RecordMap[ClockBundle]] = {
     val aggregator = ClockGroupAggregator()
