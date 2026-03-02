@@ -3,9 +3,9 @@
 package freechips.rocketchip.subsystem
 
 import chisel3._
-import freechips.rocketchip.prci.{ClockBundle, ClockEdgeParameters, ClockGroupAggregator, ClockGroupEdgeParameters, ClockGroupIdentityNode, ClockGroupSourceNode, ClockGroupSourceParameters}
+import freechips.rocketchip.prci.{ClockBundle, ClockGroupAggregator, ClockGroupIdentityNode, ClockGroupSourceNode, ClockGroupSourceParameters}
 import freechips.rocketchip.resources.{BindingScope, DTB, DTS, JSON}
-import freechips.rocketchip.tilelink.TLBusWrapper
+import freechips.rocketchip.tilelink.{TLBusWrapper, TLBusWrapperTopology}
 import freechips.rocketchip.util.{ElaborationArtefacts, Location, PlusArgArtefacts, RecordMap}
 import org.chipsalliance.cde.config._
 import org.chipsalliance.diplomacy.lazymodule._
@@ -118,59 +118,58 @@ trait HasConfigurablePRCILocations {
       None
     }
 
-  case class BusInfo(idx: Int, inst: TLBusWrapperLocation, name: String, member: String)
+  /**
+   * A mapping of clock bundles from the [[clockSource]] to the TLBusWrappers that are driven by those clock bundles, in hierarchical order from source to leaf (master to slave).
+   */
+  lazy val busHierarchyByClock: Map[ClockBundle, Seq[TLBusWrapper]] = {
+    val topoInSubsystem = p(TLNetworkTopologyLocated(InSubsystem))
+    val busTopos: Seq[TLBusWrapperTopology] = topoInSubsystem.collect { case t: TLBusWrapperTopology => t }
 
-  case class IOClockPort(name: String, sink: ClockEdgeParameters, portOpt: Option[ClockBundle])
+    val busHierMap = mutable.LinkedHashMap.empty[ClockBundle, Seq[TLBusWrapper]]
 
-  private lazy val clockBusPaths: Map[IOClockPort, IndexedSeq[BusInfo]] = {
-    require(clockSource.get.out.size == 1, "ClockGroupSourceNode should have exactly one output port")
-    val sourceEdge: ClockGroupEdgeParameters = clockSource.get.out.head._2
+    clockSource.get.out.foreach { case (_, sourceEdge) => // Should only be one iteration.
+      sourceEdge.members.foreach { case (portName, sourceForBus) =>
+        val clk = io_clocks.get.getWrappedValue.elements.getOrElse(portName, throw new RuntimeException(s"Clock bundle \"$portName\" not found in io_clocks RecordMap"))
+        val ordering = mutable.LinkedHashMap.empty[TLBusWrapper, mutable.LinkedHashSet[TLBusWrapper]]
 
-    // IO port member keys, indexed in the same order as sourceEdge.sink.members.
-    // These become the field names in the io_clocks RecordMap (e.g. "aggregator_0").
-    val ioPorts: IndexedSeq[(String, ClockEdgeParameters)] = sourceEdge.members.toIndexedSeq
+        busTopos.foreach { topo =>
+          def connectsToSource(busInst: TLBusWrapper): Boolean = {
+            // get in edges of the bus and find which one matches this sink parameter
+            val busInEdges = busInst.clockGroupNode.in.map(_._2).flatMap(_.sink.members)
+            busInEdges.exists { busSink => busSink eq sourceForBus.sink }
+          }
 
-    // The ClockSinkParameters object for each IO port, by position.
-    // These are the SAME Scala objects that each downstream clock sink
-    // (device / bus) registered — reference equality is safe for matching.
-    val ioClockSinkParams = sourceEdge.sink.members.toIndexedSeq
-    require(ioPorts.size == ioClockSinkParams.size)
+          topo.connections.foreach { case (master, slave, _) =>
+            val Seq(mInst, sInst) = Seq(master, slave).map(locateTLBusWrapper)
+            if (connectsToSource(mInst) && connectsToSource(sInst)) {
+              ordering.getOrElseUpdate(mInst, mutable.LinkedHashSet.empty) += sInst
+            } else if (connectsToSource(mInst)) {
+              ordering.getOrElseUpdate(mInst, mutable.LinkedHashSet.empty)
+            }
+          }
+          topo.instantiations.foreach { case (loc, _) =>
+            val busInst = locateTLBusWrapper(loc)
+            if (connectsToSource(busInst)) {
+              ordering.getOrElseUpdate(busInst, mutable.LinkedHashSet.empty)
+            }
+          }
+        }
 
-    val busLocs = Seq[TLBusWrapperLocation](SBUS, COH, MBUS, CBUS, PBUS, FBUS)
+        // Find end (TLBusWrappers with no slave connections)
+        val leafs = ordering.filter { case (_, slaves) => slaves.isEmpty }.keys.toSeq
+        require(leafs.size == 1, s"Expected exactly one leaf bus in the topology, but found ${leafs.size} ")
+        val leaf = leafs.head
 
-    val allMatches: Seq[BusInfo] =
-      for {
-        loc <- busLocs
-        bus <- Seq(locateTLBusWrapper(loc))
-        // bus.clockGroupNode.in gives inward edges of the bus aggregator
-        // (edges from upstream clock providers: allClockGroupsNode or a
-        // parent bus when DriveClocksFromSBus is enabled).
-        (_, busEdge: ClockGroupEdgeParameters) <- bus.clockGroupNode.in
-        busMemberNames = busEdge.members.keys.toIndexedSeq
-        (busSink, busIdx) <- busEdge.sink.members.zipWithIndex
-        (ioSink, ioIdx) <- ioClockSinkParams.zipWithIndex
-        if ioSink eq busSink // Match the same ClockSinkParameters object by reference equality
-      } yield BusInfo(ioIdx, loc, bus.name, busMemberNames(busIdx))
+        // Walk back from the leaf to the root to get the full path of TLBusWrappers from the source to the leaf
+        def walk(bus: TLBusWrapper): Seq[TLBusWrapper] = {
+          Seq(bus) ++ ordering.filter { case (_, slaves) => slaves.contains(bus) }.keys.toSeq.flatMap(walk)
+        }
 
-    val busByIdx = allMatches.groupBy(_.idx)
-
-    val clockMapping = mutable.LinkedHashMap.empty[IOClockPort, IndexedSeq[BusInfo]]
-    ioPorts.zipWithIndex.foreach { case ((name, edge), i: Int) =>
-      val portOpt = io_clocks.get.getWrappedValue.elements.get(name) // name should be found - they use the same sourceEdge.members
-      busByIdx.get(i) match {
-        case Some(busInfos) =>
-          clockMapping(IOClockPort(name, edge, portOpt)) = busInfos.toIndexedSeq
-        case None => clockMapping(IOClockPort(name, edge, portOpt)) = IndexedSeq.empty
+        val buses = walk(leaf).reverse // reverse to get the order from source to leaf
+        busHierMap += (clk -> buses)
       }
     }
-    clockMapping.toMap
-  }
-
-  def ioClockForBusLeaf(busLeaf: TLBusWrapper): Option[IOClockPort] = {
-    // Check the last element in each of the bus paths to find which one matches the given bus leaf location, then return the corresponding IOClockPort.
-    clockBusPaths.collectFirst {
-      case (ioPort, busInfos) if busInfos.lastOption.exists(_.name == busLeaf.busName) => ioPort
-    }
+    busHierMap.toMap
   }
 
   private def buildClockGroupIO(): ModuleValue[RecordMap[ClockBundle]] = {
