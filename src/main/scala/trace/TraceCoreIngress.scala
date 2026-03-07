@@ -44,6 +44,7 @@ class TraceCoreIngress(val params: TraceCoreParams) extends Module {
     }
     itype
   }
+
   io.out.iretire := io.in.valid
   io.out.iaddr := io.in.pc
   io.out.itype := gen_itype(io.in.insn, io.in.taken, io.in.is_branch, io.in.is_jal, io.in.is_jalr)
