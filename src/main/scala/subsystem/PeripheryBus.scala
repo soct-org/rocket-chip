@@ -64,7 +64,9 @@ class PeripheryBus(params: PeripheryBusParams, name: String)(implicit p: Paramet
     })
       :*= in_xbar.node)
   }.getOrElse {
-    TLXbar() :*= fixer.node
+    val in_xbar = LazyModule(new TLXbar(nameSuffix = Some(s"${name}_in")))
+    val out_xbar = LazyModule(new TLXbar(nameSuffix = Some(s"${name}_out")))
+    (out_xbar.node :*= fixer.node :*= in_xbar.node)
   }
 
   def inwardNode: TLInwardNode = node

@@ -357,7 +357,8 @@ object VType {
 
 class VType(implicit p: Parameters) extends CoreBundle {
   val vill = Bool()
-  val reserved = UInt((xLen - 9).W)
+  val reserved = UInt((xLen - 10).W)
+  val altfmt = Bool()
   val vma = Bool()
   val vta = Bool()
   val vsew = UInt(3.W)
